@@ -1,0 +1,743 @@
+#import "stdafx.h"
+#import "ProjectMView.h"
+#import "ProjectMMenuLogic.h"
+
+#import <objc/runtime.h>
+#include <exception>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+@implementation ProjectMView (Menu)
+
+- (void)applyMenuTitleLimitToItem:(NSMenuItem *)item fullTitle:(NSString *)fullTitle {
+    PMApplyMenuTitleLimit(item, fullTitle);
+}
+
+- (void)showPresetOverlayName:(NSString *)presetName {
+    if (!presetName || presetName.length == 0) return;
+
+    if (self->_isVisualizationPaused) return;
+
+    [self showOverlayText:presetName persistent:NO];
+}
+
+- (void)showOverlayText:(NSString *)text persistent:(BOOL)persistent {
+    if (!text || text.length == 0) return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!self->_presetOverlayLabel) {
+            self->_presetOverlayLabel = [[NSTextField alloc] initWithFrame:NSZeroRect];
+            self->_presetOverlayLabel.editable = NO;
+            self->_presetOverlayLabel.bordered = NO;
+            self->_presetOverlayLabel.drawsBackground = YES;
+            self->_presetOverlayLabel.backgroundColor = [NSColor colorWithWhite:0.0 alpha:0.45];
+            self->_presetOverlayLabel.textColor = [NSColor whiteColor];
+            self->_presetOverlayLabel.alignment = NSTextAlignmentCenter;
+            self->_presetOverlayLabel.font = [NSFont boldSystemFontOfSize:22.0];
+            self->_presetOverlayLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+            self->_presetOverlayLabel.maximumNumberOfLines = 1;
+            self->_presetOverlayLabel.hidden = YES;
+            self->_presetOverlayLabel.alphaValue = 0.0;
+            self->_presetOverlayLabel.translatesAutoresizingMaskIntoConstraints = NO;
+            self->_presetOverlayLabel.wantsLayer = YES;
+            self->_presetOverlayLabel.layer.cornerRadius = 8.0;
+            self->_presetOverlayLabel.layer.masksToBounds = YES;
+            [self addSubview:self->_presetOverlayLabel];
+
+            [NSLayoutConstraint activateConstraints:@[
+                [self->_presetOverlayLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+                [self->_presetOverlayLabel.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+                [self->_presetOverlayLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:16.0],
+                [self->_presetOverlayLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-16.0]
+            ]];
+        }
+
+        self->_presetOverlayToken++;
+        NSUInteger token = self->_presetOverlayToken;
+
+        self->_presetOverlayLabel.stringValue = [NSString stringWithFormat:@"  %@  ", text];
+        self->_presetOverlayLabel.hidden = NO;
+        self->_presetOverlayLabel.alphaValue = 1.0;
+
+        if (persistent) {
+            return;
+        }
+
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (token != self->_presetOverlayToken) return;
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+                context.duration = 0.2;
+                self->_presetOverlayLabel.animator.alphaValue = 0.0;
+            } completionHandler:^{
+                if (token != self->_presetOverlayToken) return;
+                self->_presetOverlayLabel.hidden = YES;
+            }];
+        });
+    });
+}
+
+- (void)hideOverlayText {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self->_presetOverlayToken++;
+
+        if (!self->_presetOverlayLabel) {
+            return;
+        }
+
+        self->_presetOverlayLabel.alphaValue = 0.0;
+        self->_presetOverlayLabel.hidden = YES;
+    });
+}
+
+- (void)populatePresetMenu:(NSMenu *)menu atPath:(NSString *)directoryPath {
+    [menu removeAllItems];
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    BOOL isDirectory = NO;
+    if (![fm fileExistsAtPath:directoryPath isDirectory:&isDirectory] || !isDirectory) {
+        NSMenuItem *missingItem = [menu addItemWithTitle:@"(Not found)" action:nil keyEquivalent:@""];
+        missingItem.enabled = NO;
+        return;
+    }
+
+    NSError *error = nil;
+    NSArray<NSString *> *entries = [fm contentsOfDirectoryAtPath:directoryPath error:&error];
+    if (!entries) {
+        NSMenuItem *unavailableItem = [menu addItemWithTitle:@"(Unavailable)" action:nil keyEquivalent:@""];
+        unavailableItem.enabled = NO;
+        return;
+    }
+
+    NSMutableArray<NSString *> *folders = [NSMutableArray array];
+    NSMutableArray<NSString *> *presets = [NSMutableArray array];
+
+    for (NSString *entry in entries) {
+        if ([entry hasPrefix:@"."]) continue;
+
+        NSString *fullPath = [directoryPath stringByAppendingPathComponent:entry];
+        BOOL childIsDirectory = NO;
+        if ([fm fileExistsAtPath:fullPath isDirectory:&childIsDirectory] && childIsDirectory) {
+            [folders addObject:entry];
+            continue;
+        }
+
+        if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+            if ([self isLikelyValidMilkPresetAtPath:fullPath warning:nil]) {
+                [presets addObject:entry];
+            }
+        }
+    }
+
+    [folders sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    [presets sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+
+    for (NSString *folderName in folders) {
+        NSString *folderPath = [directoryPath stringByAppendingPathComponent:folderName];
+        NSMenuItem *folderItem = [menu addItemWithTitle:folderName action:nil keyEquivalent:@""];
+        [self applyMenuTitleLimitToItem:folderItem fullTitle:folderName];
+        NSMenu *submenu = [[NSMenu alloc] initWithTitle:folderName];
+        submenu.delegate = self;
+        objc_setAssociatedObject(submenu, kPresetMenuPathKey, folderPath, OBJC_ASSOCIATION_COPY_NONATOMIC);
+        folderItem.submenu = submenu;
+    }
+
+    if (folders.count > 0 && presets.count > 0) {
+        [menu addItem:[NSMenuItem separatorItem]];
+    }
+
+    auto savedName = cfg_preset_name.get();
+    NSString *currentPresetFilename = savedName.length() > 0 ? [[@(savedName.get_ptr()) lastPathComponent] lowercaseString] : nil;
+
+    for (NSString *presetFilename in presets) {
+        NSString *presetPath = [directoryPath stringByAppendingPathComponent:presetFilename];
+        NSString *displayName = [presetFilename stringByDeletingPathExtension];
+        NSMenuItem *presetItem = [menu addItemWithTitle:displayName
+                                                  action:@selector(selectPresetFromMenuItem:)
+                                           keyEquivalent:@""];
+        presetItem.target = self;
+        presetItem.representedObject = presetPath;
+        [self applyMenuTitleLimitToItem:presetItem fullTitle:displayName];
+        if (currentPresetFilename && [[presetFilename lowercaseString] isEqualToString:currentPresetFilename]) {
+            presetItem.state = NSControlStateValueOn;
+        }
+    }
+
+    if (folders.count == 0 && presets.count == 0) {
+        NSMenuItem *emptyItem = [menu addItemWithTitle:@"(Empty)" action:nil keyEquivalent:@""];
+        emptyItem.enabled = NO;
+    }
+}
+
+- (void)selectPresetFromMenuItem:(id)sender {
+    if (!_projectM || !_playlist) return;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (!cglContext) return;
+
+    BOOL contextLocked = NO;
+    try {
+        @try {
+            NSMenuItem *item = (NSMenuItem *)sender;
+            NSString *presetPath = [item.representedObject isKindOfClass:[NSString class]] ? (NSString *)item.representedObject : nil;
+            if (!presetPath || presetPath.length == 0) return;
+
+            NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+
+            NSString *validationWarning = nil;
+            if (![self isLikelyValidMilkPresetAtPath:targetPath warning:&validationWarning]) {
+                NSString *safeReason = PMConsoleReasonOrDefault(validationWarning);
+                FB2K_console_print("projectM: invalid preset selected, skipping: ", [targetPath UTF8String], " reason=", [safeReason UTF8String]);
+
+                CGLLockContext(cglContext);
+                contextLocked = YES;
+                [[self openGLContext] makeCurrentContext];
+
+                uint32_t totalPresets = projectm_playlist_size(_playlist);
+                if (totalPresets > 0) {
+                    uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
+                    projectm_playlist_set_position(_playlist, randomIndex, true);
+                    [self refreshCurrentPresetName:randomIndex showOverlay:YES];
+                } else {
+                    [self loadDefaultPresetFallback];
+                }
+
+                CGLUnlockContext(cglContext);
+                contextLocked = NO;
+                return;
+            }
+
+            CGLLockContext(cglContext);
+            contextLocked = YES;
+            [[self openGLContext] makeCurrentContext];
+
+            uint32_t totalPresets = projectm_playlist_size(_playlist);
+            uint32_t selectedIndex = 0;
+            BOOL foundIndex = NO;
+
+            if (totalPresets > 0) {
+                char **items = projectm_playlist_items(_playlist, 0, totalPresets);
+                for (uint32_t i = 0; items && items[i]; ++i) {
+                    NSString *candidatePath = @(items[i]);
+                    NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+                    if ([normalizedCandidate isEqualToString:targetPath] ||
+                        [normalizedCandidate hasSuffix:targetPath] ||
+                        [targetPath hasSuffix:normalizedCandidate]) {
+                        selectedIndex = i;
+                        foundIndex = YES;
+                        break;
+                    }
+                }
+                if (items) projectm_playlist_free_string_array(items);
+            }
+
+            if (foundIndex) {
+                projectm_playlist_set_position(_playlist, selectedIndex, true);
+                [self refreshCurrentPresetName:selectedIndex showOverlay:YES];
+            } else {
+                projectm_load_preset_file(_projectM, [presetPath UTF8String], true);
+                cfg_preset_name = [[presetPath lastPathComponent] UTF8String];
+                [self showPresetOverlayName:[[presetPath lastPathComponent] stringByDeletingPathExtension]];
+            }
+
+            CGLUnlockContext(cglContext);
+            contextLocked = NO;
+        }
+        @catch (NSException *exception) {
+            FB2K_console_print("projectM: Objective-C exception in selectPresetFromMenuItem: ", [[exception description] UTF8String]);
+            if (contextLocked) {
+                CGLUnlockContext(cglContext);
+                contextLocked = NO;
+            }
+        }
+    } catch (const std::exception &e) {
+        FB2K_console_print("projectM: C++ exception in selectPresetFromMenuItem: ", e.what());
+        if (contextLocked) {
+            CGLUnlockContext(cglContext);
+            contextLocked = NO;
+        }
+    } catch (...) {
+        FB2K_console_print("projectM: unknown C++ exception in selectPresetFromMenuItem");
+        if (contextLocked) {
+            CGLUnlockContext(cglContext);
+            contextLocked = NO;
+        }
+    }
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    NSString *menuPath = objc_getAssociatedObject(menu, kPresetMenuPathKey);
+    if (![menuPath isKindOfClass:[NSString class]]) return;
+    [self populatePresetMenu:menu atPath:menuPath];
+}
+
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (void)mouseDown:(NSEvent *)event {
+    if (self->_isVisualizationPaused) {
+        [self togglePausePlayback:nil];
+        return;
+    }
+
+    if (event.clickCount == 2) {
+        [self toggleVisualizationFullScreen];
+    }
+    [super mouseDown:event];
+}
+
+- (void)keyDown:(NSEvent *)event {
+    if (event.keyCode == 53 && [self isInFullScreenMode]) {
+        [self toggleVisualizationFullScreen];
+        return;
+    }
+    [super keyDown:event];
+}
+
+- (void)cancelOperation:(id)sender {
+    if ([self isInFullScreenMode]) {
+        [self toggleVisualizationFullScreen];
+        return;
+    }
+    [super cancelOperation:sender];
+}
+
+- (void)rightMouseDown:(NSEvent *)event {
+    NSMenu *menu = [self buildContextMenu];
+    [NSMenu popUpContextMenu:menu withEvent:event forView:self];
+}
+
+- (NSMenu *)buildContextMenu {
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"projectMacOS"];
+
+    NSMenuItem *currentPreset = [menu addItemWithTitle:[self currentPresetDisplayName]
+                                                action:nil
+                                         keyEquivalent:@""];
+    currentPreset.enabled = NO;
+    [self applyMenuTitleLimitToItem:currentPreset fullTitle:[self currentPresetDisplayName]];
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSMenuItem *fullscreen = [menu addItemWithTitle:@"Toggle Full-Screen Mode"
+                                             action:@selector(toggleVisualizationFullScreen)
+                                      keyEquivalent:@""];
+    fullscreen.target = self;
+    fullscreen.state = [self isInFullScreenMode] ? NSControlStateValueOn : NSControlStateValueOff;
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSMenuItem *presetBrowser = [menu addItemWithTitle:@"Preset"
+                                                action:nil
+                                         keyEquivalent:@""];
+    NSMenu *presetMenu = [[NSMenu alloc] initWithTitle:@"Preset"];
+    presetMenu.delegate = self;
+    objc_setAssociatedObject(presetMenu, kPresetMenuPathKey, [self presetsDirectoryPath], OBJC_ASSOCIATION_COPY_NONATOMIC);
+    presetBrowser.submenu = presetMenu;
+
+    NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaused)
+                                        action:@selector(togglePausePlayback:)
+                                 keyEquivalent:@""];
+    pause.target = self;
+    [self applySystemSymbol:PMPauseMenuSymbolName(_isVisualizationPaused) toMenuItem:pause];
+
+    NSMenuItem *next = [menu addItemWithTitle:@"Next"
+                                       action:@selector(nextPreset:)
+                                keyEquivalent:@""];
+    next.target = self;
+    [self applySystemSymbol:@"forward.fill" toMenuItem:next];
+
+    NSMenuItem *prev = [menu addItemWithTitle:@"Previous"
+                                       action:@selector(previousPreset:)
+                                keyEquivalent:@""];
+    prev.target = self;
+    [self applySystemSymbol:@"backward.fill" toMenuItem:prev];
+
+    NSMenuItem *random = [menu addItemWithTitle:@"Random Pick"
+                                          action:@selector(randomPreset:)
+                                   keyEquivalent:@""];
+    random.target = self;
+    [self applySystemSymbol:@"shuffle" toMenuItem:random];
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSMenuItem *shuffle = [menu addItemWithTitle:@"Shuffle Presets"
+                                          action:@selector(toggleShuffle:)
+                                   keyEquivalent:@""];
+    shuffle.target = self;
+    shuffle.state = cfg_preset_shuffle ? NSControlStateValueOn : NSControlStateValueOff;
+    shuffle.toolTip = @"When enabled, presets will change randomly after a set amount of time.";
+
+    NSMenu *durationMenu = [[NSMenu alloc] initWithTitle:@"Delay"];
+    int durations[] = {5, 10, 20, 30, 45, 60};
+    for (int d : durations) {
+        NSString *title = [NSString stringWithFormat:@"%ds", d];
+        NSMenuItem *item = [durationMenu addItemWithTitle:title
+                                                   action:@selector(setDuration:)
+                                            keyEquivalent:@""];
+        item.target = self;
+        item.tag = d;
+        if (d == cfg_preset_duration)
+            item.state = NSControlStateValueOn;
+    }
+    NSMenuItem *durationItem = [menu addItemWithTitle:@"Delay"
+                                               action:nil
+                                        keyEquivalent:@""];
+    durationItem.submenu = durationMenu;
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    NSMenuItem *helpItem = [menu addItemWithTitle:@"Help"
+                                           action:@selector(showHelp:)
+                                    keyEquivalent:@""];
+    helpItem.target = self;
+
+    return menu;
+}
+
+- (void)applySystemSymbol:(NSString *)symbolName toMenuItem:(NSMenuItem *)item {
+    if (!symbolName || !item) return;
+
+    NSImage *image = [NSImage imageWithSystemSymbolName:symbolName accessibilityDescription:nil];
+    if (!image) return;
+
+    [image setTemplate:YES];
+    item.image = image;
+}
+
+- (void)togglePausePlayback:(id)sender {
+    (void)sender;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    BOOL contextLocked = NO;
+    @try {
+        if (cglContext) {
+            CGLLockContext(cglContext);
+            contextLocked = YES;
+        }
+
+        BOOL pauseRequested = !_isVisualizationPaused;
+        if (pauseRequested) {
+            _shuffleResumeToken++;
+            _hasPausedShuffleProgress = NO;
+            if (cfg_preset_shuffle && _lastPresetSwitchTimestamp > 0.0) {
+                double elapsedDuration = CFAbsoluteTimeGetCurrent() - _lastPresetSwitchTimestamp;
+                _remainingShuffleDurationOnPause = PMRemainingShuffleDurationSeconds((double)cfg_preset_duration, elapsedDuration);
+                _hasPausedShuffleProgress = YES;
+            }
+        }
+
+        _isVisualizationPaused = !_isVisualizationPaused;
+
+        if (_projectM) {
+            if (PMShouldScheduleShuffleResume(_isVisualizationPaused, cfg_preset_shuffle, _hasPausedShuffleProgress)) {
+                _shuffleResumeToken++;
+                NSUInteger resumeToken = _shuffleResumeToken;
+                double resumeDelaySeconds = _remainingShuffleDurationOnPause;
+                _hasPausedShuffleProgress = NO;
+
+                projectm_set_preset_locked(_projectM, YES);
+
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(resumeDelaySeconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    if (resumeToken != self->_shuffleResumeToken) return;
+                    if (self->_isVisualizationPaused) return;
+                    if (!cfg_preset_shuffle || !self->_projectM || !self->_playlist) return;
+
+                    CGLContextObj resumeContext = [[self openGLContext] CGLContextObj];
+                    BOOL resumeContextLocked = NO;
+                    @try {
+                        if (resumeContext) {
+                            CGLLockContext(resumeContext);
+                            resumeContextLocked = YES;
+                            [[self openGLContext] makeCurrentContext];
+                        }
+
+                        if (projectm_playlist_size(self->_playlist) > 0) {
+                            projectm_playlist_play_next(self->_playlist, true);
+                        }
+
+                        projectm_set_preset_locked(self->_projectM, PMShouldLockPreset(cfg_preset_shuffle, self->_isVisualizationPaused));
+
+                        if (resumeContextLocked) {
+                            CGLUnlockContext(resumeContext);
+                            resumeContextLocked = NO;
+                        }
+                    }
+                    @catch (NSException *exception) {
+                        FB2K_console_print("projectM: Objective-C exception while scheduling shuffle resume: ", [[exception description] UTF8String]);
+                        if (resumeContextLocked) {
+                            CGLUnlockContext(resumeContext);
+                        }
+                    }
+                });
+            } else {
+                projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused));
+            }
+        }
+
+        if (contextLocked) {
+            CGLUnlockContext(cglContext);
+            contextLocked = NO;
+        }
+    }
+    @catch (NSException *exception) {
+        FB2K_console_print("projectM: Objective-C exception in togglePausePlayback: ", [[exception description] UTF8String]);
+        if (contextLocked) {
+            CGLUnlockContext(cglContext);
+        }
+        return;
+    }
+
+    if (_isVisualizationPaused) {
+        [self showOverlayText:PMPausedOverlayText() persistent:YES];
+        return;
+    }
+
+    [self hideOverlayText];
+}
+
+- (void)showHelp:(id)sender {
+    (void)sender;
+    BOOL darkMode = NO;
+    if (@available(macOS 10.14, *)) {
+        NSAppearance *appearance = self.effectiveAppearance ?: NSApp.effectiveAppearance;
+        NSString *bestAppearance = [appearance bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+        darkMode = [bestAppearance isEqualToString:NSAppearanceNameDarkAqua];
+    }
+
+    NSString *textColor = PMHelpTextColorHex(darkMode);
+    NSString *backgroundColor = PMHelpBackgroundColorHex(darkMode);
+    NSString *preBackgroundColor = darkMode ? @"#1a1a1a" : @"#f5f5f5";
+    NSString *preBorderColor = darkMode ? @"#3a3a3a" : @"#dddddd";
+    NSString *separatorColor = darkMode ? @"#4a4a4a" : @"#cccccc";
+    NSString *linkColor = darkMode ? @"#8ab4ff" : @"#0645ad";
+
+    NSString *helpHTML = [NSString stringWithFormat:
+        @"<!doctype html><html><head><meta charset='utf-8'><style>"
+         "body{font-family:-apple-system,Helvetica,sans-serif;font-size:14px;line-height:1.45;color:%@;background:%@;margin:0;padding:0;}"
+         "h1{font-size:28px;margin:0 0 14px 0;}"
+         "h2{font-size:20px;margin:24px 0 10px 0;font-weight:700;}"
+         "p{margin:0 0 12px 0;}"
+         "strong{font-weight:700;}"
+         "ul{margin:0 0 14px 20px;padding:0;}"
+         "li{margin:0 0 6px 0;}"
+         "pre{font-family:Menlo,Monaco,monospace;font-size:12px;color:%@;background:%@;border:1px solid %@;border-radius:6px;padding:10px;white-space:pre;overflow-x:auto;margin:8px 0 14px 0;}"
+         "hr{border:0;border-top:1px solid %@;margin:16px 0;}"
+         "a{color:%@;text-decoration:underline;}"
+         "</style></head><body>"
+         "<h1>projectMacOS</h1>"
+         "<p>Open-source music visualizer for <a href='https://www.foobar2000.org'>foobar2000</a> on MacOS.</p>"
+         "<p>Full instructions on how to install and use the plugin are available at <a href='https://github.com/gabitoesmiapodo/projectMacOS'>https://github.com/gabitoesmiapodo/projectMacOS</a></p>"
+         "<h2>Layout</h2>"
+         "<p>Add the <strong>projectMacOS</strong> component in your preferred location in the layout (View / Layout / Edit Layout)</p>"
+         "<p><strong>You can use this template:</strong></p>"
+         "<pre>splitter horizontal style=thin\n splitter vertical style=thin\n  splitter horizontal style=thin\n   albumlist\n   albumart type=\"front cover\"\n  splitter horizontal style=thin\n   playlist\n   projectMacOS\n playback-controls</pre>"
+         "<br>"
+         "<h2>How to use</h2>"
+         "<p>Once added to the layout, these are the available controls:</p>"
+         "<p>&bull; Right click / Preset to browse and load presets.</p>"
+         "<p>&bull; Pause / Resume freezes or resumes the current visualization.</p>"
+         "<p>&bull; Previous / Next buttons to switch between presets.</p>"
+         "<p>&bull; Random Pick button to load a random preset.</p>"
+         "<p>&bull; Shuffle Presets on / off to enable / disable random preset selection after a set amount of time (configurable in Delay item).</p>"
+         "<p>&bull; Double-click to toggle visualization's fullscreen mode.</p>"
+         "<p>&bull; Press ESC to exit fullscreen.</p>"
+         "<hr>"
+         "<p><strong>This project is distributed under the GNU Lesser General Public License v2.1.</strong></p>"
+         "</body></html>",
+         textColor,
+         backgroundColor,
+         textColor,
+         preBackgroundColor,
+         preBorderColor,
+         separatorColor,
+         linkColor];
+
+    if (!_helpWindow || !_helpTextView) {
+        NSRect frame = NSMakeRect(0, 0, 980, 700);
+        _helpWindow = [[NSWindow alloc] initWithContentRect:frame
+                                                  styleMask:(NSWindowStyleMaskTitled |
+                                                             NSWindowStyleMaskClosable |
+                                                             NSWindowStyleMaskMiniaturizable |
+                                                             NSWindowStyleMaskResizable)
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:NO];
+        [_helpWindow setReleasedWhenClosed:NO];
+        _helpWindow.delegate = self;
+        [_helpWindow setTitle:@"projectMacOS Help"];
+
+        NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:[[_helpWindow contentView] bounds]];
+        scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        scrollView.hasVerticalScroller = YES;
+        scrollView.hasHorizontalScroller = YES;
+
+        NSTextView *textView = [[NSTextView alloc] initWithFrame:[scrollView bounds]];
+        textView.editable = NO;
+        textView.selectable = YES;
+        textView.richText = YES;
+        textView.drawsBackground = YES;
+        textView.usesFindPanel = YES;
+        textView.usesFontPanel = NO;
+        textView.automaticQuoteSubstitutionEnabled = NO;
+        textView.automaticDataDetectionEnabled = YES;
+        textView.textContainerInset = NSMakeSize(8.0, 8.0);
+        textView.minSize = NSMakeSize(0.0, 0.0);
+        textView.maxSize = NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX);
+        textView.verticallyResizable = YES;
+        textView.horizontallyResizable = YES;
+        textView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        [[textView textContainer] setWidthTracksTextView:NO];
+
+        scrollView.documentView = textView;
+        _helpTextView = textView;
+        [[_helpWindow contentView] addSubview:scrollView];
+    }
+
+    _helpTextView.drawsBackground = YES;
+    _helpTextView.backgroundColor = darkMode ? [NSColor blackColor] : [NSColor whiteColor];
+
+    if ([_helpTextView isKindOfClass:[NSTextView class]]) {
+        NSAttributedString *renderedHelp = nil;
+        NSData *htmlData = [helpHTML dataUsingEncoding:NSUTF8StringEncoding];
+        NSError *error = nil;
+        NSDictionary *options = @{
+            NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType,
+            NSCharacterEncodingDocumentAttribute: @(NSUTF8StringEncoding),
+            NSBaseURLDocumentOption: [NSURL URLWithString:@"https://github.com/gabitoesmiapodo/projectMacOS"]
+        };
+        renderedHelp = [[NSAttributedString alloc] initWithData:htmlData
+                                                         options:options
+                                              documentAttributes:nil
+                                                           error:&error];
+        if (!renderedHelp && error) {
+            FB2K_console_print("projectM: help HTML parse failed: ", [[error localizedDescription] UTF8String]);
+        }
+
+        if (renderedHelp) {
+            [[_helpTextView textStorage] setAttributedString:renderedHelp];
+        }
+    }
+
+    [_helpWindow center];
+    [_helpWindow makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
+- (void)windowWillClose:(NSNotification *)notification {
+    if (notification.object == _helpWindow) {
+        _helpTextView = nil;
+        _helpWindow = nil;
+    }
+}
+
+- (void)cleanupHelpWindow {
+    if (!_helpWindow) {
+        _helpTextView = nil;
+        return;
+    }
+
+    _helpWindow.delegate = nil;
+    [_helpWindow orderOut:nil];
+    [_helpWindow close];
+    _helpTextView = nil;
+    _helpWindow = nil;
+}
+
+- (void)toggleVisualizationFullScreen {
+    if ([self isInFullScreenMode]) {
+        [self exitFullScreenModeWithOptions:nil];
+        return;
+    }
+
+    NSScreen *screen = self.window.screen ?: [NSScreen mainScreen];
+    if (!screen) return;
+
+    NSDictionary *options = @{
+        NSFullScreenModeApplicationPresentationOptions: @(NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar)
+    };
+    [self enterFullScreenMode:screen withOptions:options];
+    [self.window makeFirstResponder:self];
+}
+
+- (void)toggleShuffle:(id)sender {
+    cfg_preset_shuffle = !cfg_preset_shuffle;
+    _shuffleResumeToken++;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (cglContext) {
+        CGLLockContext(cglContext);
+        [[self openGLContext] makeCurrentContext];
+    }
+
+    if (_projectM) {
+        if (!cfg_preset_shuffle) {
+            _hasPausedShuffleProgress = NO;
+        } else if (_isVisualizationPaused && !_hasPausedShuffleProgress) {
+            _remainingShuffleDurationOnPause = (double)cfg_preset_duration;
+            _hasPausedShuffleProgress = YES;
+        }
+
+        projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused));
+    }
+
+    if (_playlist)
+        projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
+
+    if (cfg_preset_shuffle && !_isVisualizationPaused && _playlist && projectm_playlist_size(_playlist) > 0)
+        projectm_playlist_play_next(_playlist, true);
+
+    if (cglContext)
+        CGLUnlockContext(cglContext);
+}
+
+- (void)nextPreset:(id)sender {
+    if (!_projectM || !_playlist) return;
+    if (projectm_playlist_size(_playlist) == 0) return;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (!cglContext) return;
+
+    CGLLockContext(cglContext);
+    [[self openGLContext] makeCurrentContext];
+    projectm_playlist_play_next(_playlist, true);
+    CGLUnlockContext(cglContext);
+}
+
+- (void)previousPreset:(id)sender {
+    if (!_projectM || !_playlist) return;
+    if (projectm_playlist_size(_playlist) == 0) return;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (!cglContext) return;
+
+    CGLLockContext(cglContext);
+    [[self openGLContext] makeCurrentContext];
+    projectm_playlist_play_previous(_playlist, true);
+    CGLUnlockContext(cglContext);
+}
+
+- (void)randomPreset:(id)sender {
+    if (!_projectM || !_playlist) return;
+    if (projectm_playlist_size(_playlist) == 0) return;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (!cglContext) return;
+
+    CGLLockContext(cglContext);
+    [[self openGLContext] makeCurrentContext];
+    projectm_playlist_set_shuffle(_playlist, true);
+    projectm_playlist_play_next(_playlist, true);
+    projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
+    CGLUnlockContext(cglContext);
+}
+
+- (void)setDuration:(id)sender {
+    NSMenuItem *item = (NSMenuItem *)sender;
+    cfg_preset_duration = (int)item.tag;
+    if (_projectM)
+        projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
+}
+
+@end
+
+#pragma clang diagnostic pop

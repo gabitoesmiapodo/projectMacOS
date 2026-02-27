@@ -1,0 +1,27 @@
+# Claude Code
+.claude/settings.local.json
+
+# SDK build artifacts (rebuild per-platform via scripts/build-deps.sh)
+deps/foobar2000-sdk/pfc/build/
+deps/foobar2000-sdk/foobar2000/SDK/build/
+deps/foobar2000-sdk/foobar2000/helpers/build/
+deps/foobar2000-sdk/foobar2000/foobar2000_component_client/build/
+deps/foobar2000-sdk/foobar2000/shared/build/
+
+# projectM dylibs (rebuild per-platform via scripts/build-deps.sh)
+deps/projectm/lib/
+
+# Xcode
+mac/build/
+DerivedData/
+*.xcuserstate
+**/project.xcworkspace/xcuserdata/
+**/project.xcworkspace/xcshareddata/swiftpm/
+**/*.xcodeproj/xcuserdata/
+
+# macOS
+.DS_Store
+
+# artifacts
+/build*
+/.worktrees/

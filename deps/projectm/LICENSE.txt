@@ -1,0 +1,11 @@
+projectM License
+
+This bundled dependency is projectM 4.x.
+
+SPDX-License-Identifier: LGPL-2.1-only
+
+Upstream project:
+https://github.com/projectM-visualizer/projectm
+
+Canonical license text:
+https://raw.githubusercontent.com/projectM-visualizer/projectm/master/LICENSE.txt
