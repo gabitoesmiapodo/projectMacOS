@@ -123,9 +123,7 @@
         }
 
         if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
-            if ([self isLikelyValidMilkPresetAtPath:fullPath warning:nil]) {
-                [presets addObject:entry];
-            }
+            [presets addObject:entry];
         }
     }
 
@@ -184,29 +182,6 @@
 
             NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
 
-            NSString *validationWarning = nil;
-            if (![self isLikelyValidMilkPresetAtPath:targetPath warning:&validationWarning]) {
-                NSString *safeReason = PMConsoleReasonOrDefault(validationWarning);
-                FB2K_console_print("projectM: invalid preset selected, skipping: ", [targetPath UTF8String], " reason=", [safeReason UTF8String]);
-
-                CGLLockContext(cglContext);
-                contextLocked = YES;
-                [[self openGLContext] makeCurrentContext];
-
-                uint32_t totalPresets = projectm_playlist_size(_playlist);
-                if (totalPresets > 0) {
-                    uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
-                    projectm_playlist_set_position(_playlist, randomIndex, true);
-                    [self refreshCurrentPresetName:randomIndex showOverlay:YES];
-                } else {
-                    [self loadDefaultPresetFallback];
-                }
-
-                CGLUnlockContext(cglContext);
-                contextLocked = NO;
-                return;
-            }
-
             CGLLockContext(cglContext);
             contextLocked = YES;
             [[self openGLContext] makeCurrentContext];
@@ -235,9 +210,23 @@
                 projectm_playlist_set_position(_playlist, selectedIndex, true);
                 [self refreshCurrentPresetName:selectedIndex showOverlay:YES];
             } else {
-                projectm_load_preset_file(_projectM, [presetPath UTF8String], true);
-                cfg_preset_name = [[presetPath lastPathComponent] UTF8String];
-                [self showPresetOverlayName:[[presetPath lastPathComponent] stringByDeletingPathExtension]];
+                bool inserted = false;
+                try {
+                    inserted = projectm_playlist_add_preset(_playlist, [targetPath UTF8String], true);
+                } catch (...) {
+                    inserted = false;
+                }
+
+                if (inserted) {
+                    uint32_t dynamicIndex = projectm_playlist_size(_playlist);
+                    if (dynamicIndex > 0) {
+                        dynamicIndex -= 1;
+                        projectm_playlist_set_position(_playlist, dynamicIndex, true);
+                        [self refreshCurrentPresetName:dynamicIndex showOverlay:YES];
+                    }
+                } else {
+                    [self loadDefaultPresetFallback];
+                }
             }
 
             CGLUnlockContext(cglContext);

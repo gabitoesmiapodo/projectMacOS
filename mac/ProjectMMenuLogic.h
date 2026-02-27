@@ -28,3 +28,18 @@ FOUNDATION_EXPORT BOOL PMShouldScheduleShuffleResume(BOOL isPaused, BOOL shuffle
 FOUNDATION_EXPORT BOOL PMIsLikelyMilkPresetContent(NSString *content);
 /// Return a non-empty console-safe reason string.
 FOUNDATION_EXPORT NSString *PMConsoleReasonOrDefault(NSString *reason);
+/// Return whether startup should pre-validate preset file content.
+FOUNDATION_EXPORT BOOL PMShouldPrevalidatePresetFilesOnStartup(void);
+/// Return a concise name for preset failure logs.
+FOUNDATION_EXPORT NSString *PMFailedPresetConsoleName(NSString *presetPathOrName);
+/// Return whether fallback should load after a failed preset switch.
+FOUNDATION_EXPORT BOOL PMShouldUseFallbackAfterPresetLoadFailure(NSUInteger remainingPresetCount);
+/// Return whether a cached ZIP extraction can be reused.
+FOUNDATION_EXPORT BOOL PMShouldReuseZipExtractionCache(BOOL hasValidMetadata,
+                                                       BOOL fingerprintMatches,
+                                                       BOOL cacheLooksValid);
+/// Return whether ZIP mtime and size fingerprints match.
+FOUNDATION_EXPORT BOOL PMZipCacheFingerprintMatches(NSTimeInterval cachedMTime,
+                                                    uint64_t cachedSizeBytes,
+                                                    NSTimeInterval currentMTime,
+                                                    uint64_t currentSizeBytes);

@@ -4,7 +4,7 @@
 // Stub for pfc::myassert -- only called when PFC_DEBUG=1 but prebuilt SDK libs are Release
 namespace pfc { void myassert(const char*, const char*, unsigned int) {} }
 
-DECLARE_COMPONENT_VERSION("projectMacOS visualizer", "1.0.0",
+DECLARE_COMPONENT_VERSION("projectMacOS visualizer", "1.0.1",
     "projectMacOS\n\n"
     "Open-source music visualizer for foobar2000 on macOS.\n\n"
     "Full instructions on how to install and use the plugin are available at:\n"

@@ -51,10 +51,8 @@ extern const void *kPresetMenuPathKey;
 - (NSString *)zipExtractionDirectoryPath;
 /// Remove extracted ZIP cache directory.
 - (void)cleanupExtractedPresetCache;
-/// Validate preset file content before adding/loading it.
-- (BOOL)isLikelyValidMilkPresetAtPath:(NSString *)path warning:(NSString **)warning;
-/// Add only validated presets from a path and report invalid count.
-- (uint32_t)addValidatedPresetsFromPath:(NSString *)path recursive:(BOOL)recursive invalidCount:(NSUInteger *)invalidCount;
+/// Add preset file paths from a path into the playlist.
+- (uint32_t)addPresetsFromPath:(NSString *)path recursive:(BOOL)recursive;
 /// Check whether a directory can be used as a preset container.
 - (BOOL)isDirectoryPresetContainer:(NSString *)path;
 /// Normalize roots that contain a single visible top-level directory.
@@ -73,6 +71,8 @@ extern const void *kPresetMenuPathKey;
 - (NSString *)currentPresetDisplayName;
 /// Persist and optionally display current preset name by playlist index.
 - (void)refreshCurrentPresetName:(uint32_t)index showOverlay:(BOOL)showOverlay;
+/// Handle runtime preset load failure and continue playback.
+- (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
 @end
 
 @interface ProjectMView (Menu)

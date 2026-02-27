@@ -130,4 +130,34 @@
     XCTAssertEqualObjects(PMConsoleReasonOrDefault(@"missing [preset..] header"), @"missing [preset..] header");
 }
 
+- (void)testPresetDiscoverySkipsStartupValidation {
+    XCTAssertFalse(PMShouldPrevalidatePresetFilesOnStartup());
+}
+
+- (void)testFailedPresetConsoleNameUsesLastPathComponent {
+    XCTAssertEqualObjects(PMFailedPresetConsoleName(@"/tmp/Presets/Foo/Bar.milk"), @"Bar.milk");
+    XCTAssertEqualObjects(PMFailedPresetConsoleName(@"SingleName.milk"), @"SingleName.milk");
+    XCTAssertEqualObjects(PMFailedPresetConsoleName(nil), @"(unknown preset)");
+    XCTAssertEqualObjects(PMFailedPresetConsoleName(@""), @"(unknown preset)");
+}
+
+- (void)testFallbackDecisionAfterLoadFailureDependsOnRemainingPresets {
+    XCTAssertTrue(PMShouldUseFallbackAfterPresetLoadFailure(0));
+    XCTAssertFalse(PMShouldUseFallbackAfterPresetLoadFailure(1));
+    XCTAssertFalse(PMShouldUseFallbackAfterPresetLoadFailure(42));
+}
+
+- (void)testZipCacheReuseRequiresMetadataFingerprintAndValidCache {
+    XCTAssertTrue(PMShouldReuseZipExtractionCache(YES, YES, YES));
+    XCTAssertFalse(PMShouldReuseZipExtractionCache(NO, YES, YES));
+    XCTAssertFalse(PMShouldReuseZipExtractionCache(YES, NO, YES));
+    XCTAssertFalse(PMShouldReuseZipExtractionCache(YES, YES, NO));
+}
+
+- (void)testZipCacheFingerprintRequiresMatchingMtimeAndSize {
+    XCTAssertTrue(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654321ULL));
+    XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.6, 987654321ULL));
+    XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654320ULL));
+}
+
 @end
