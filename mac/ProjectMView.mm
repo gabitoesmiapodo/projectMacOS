@@ -84,7 +84,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 - (void)dealloc {
     [self destroyDisplayLink];
     [self cleanupHelpWindow];
-    [self cleanupExtractedPresetCache];
 
     if (_visStream.is_valid()) {
         _visStream.release();

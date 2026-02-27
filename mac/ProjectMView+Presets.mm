@@ -11,6 +11,16 @@
 namespace {
 
 static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *user_data);
+static void callbackPresetSwitchFailed(const char *preset_filename, const char *message, void *user_data);
+
+static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
+    if (lhs.length == 0 || rhs.length == 0) return NO;
+    if ([lhs isEqualToString:rhs]) return YES;
+    NSString *lhsName = [[lhs lastPathComponent] lowercaseString];
+    NSString *rhsName = [[rhs lastPathComponent] lowercaseString];
+    if (lhsName.length > 0 && [lhsName isEqualToString:rhsName]) return YES;
+    return [lhs hasSuffix:rhs] || [rhs hasSuffix:lhs];
+}
 
 } // anonymous namespace
 
@@ -28,63 +38,160 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content"];
 }
 
+- (NSString *)zipExtractionMetadataPath {
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content-meta.json"];
+}
+
 - (void)cleanupExtractedPresetCache {
     NSString *extractRoot = [self zipExtractionDirectoryPath];
     if (extractRoot.length == 0) return;
 
     [[NSFileManager defaultManager] removeItemAtPath:extractRoot error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:[self zipExtractionMetadataPath] error:nil];
 }
 
-- (BOOL)isLikelyValidMilkPresetAtPath:(NSString *)path warning:(NSString **)warning {
-    if (warning) *warning = nil;
+- (BOOL)zipFingerprintForPath:(NSString *)zipPath
+                        mtime:(NSTimeInterval *)mtime
+                     sizeByte:(uint64_t *)sizeByte {
+    if (mtime) *mtime = 0;
+    if (sizeByte) *sizeByte = 0;
 
-    if (path.length == 0) {
-        if (warning) *warning = @"empty path";
+    if (zipPath.length == 0) return NO;
+
+    NSError *error = nil;
+    NSDictionary<NSFileAttributeKey, id> *attrs =
+        [[NSFileManager defaultManager] attributesOfItemAtPath:zipPath error:&error];
+    if (!attrs || error) {
         return NO;
     }
 
-    if (![[[path pathExtension] lowercaseString] isEqualToString:@"milk"]) {
-        if (warning) *warning = @"unsupported extension";
+    NSDate *modDate = attrs[NSFileModificationDate];
+    NSNumber *fileSize = attrs[NSFileSize];
+    if (![modDate isKindOfClass:[NSDate class]] || ![fileSize isKindOfClass:[NSNumber class]]) {
         return NO;
     }
+
+    if (mtime) *mtime = modDate.timeIntervalSince1970;
+    if (sizeByte) *sizeByte = fileSize.unsignedLongLongValue;
+    return YES;
+}
+
+- (BOOL)readZipCacheMetadataAtPath:(NSString *)metadataPath
+                   expectedZipPath:(NSString *)zipPath
+                             mtime:(NSTimeInterval *)mtime
+                          sizeByte:(uint64_t *)sizeByte
+                      metadataFile:(BOOL *)metadataFile {
+    if (mtime) *mtime = 0;
+    if (sizeByte) *sizeByte = 0;
+    if (metadataFile) *metadataFile = NO;
+
+    if (metadataPath.length == 0 || zipPath.length == 0) {
+        return NO;
+    }
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    BOOL isDir = NO;
+    if (![fm fileExistsAtPath:metadataPath isDirectory:&isDir] || isDir) {
+        return NO;
+    }
+
+    if (metadataFile) *metadataFile = YES;
 
     NSError *readError = nil;
-    NSData *data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:&readError];
-    if (!data || readError) {
-        if (warning) *warning = @"cannot read preset file";
+    NSData *jsonData = [NSData dataWithContentsOfFile:metadataPath options:NSDataReadingMappedIfSafe error:&readError];
+    if (!jsonData || readError) {
         return NO;
     }
 
-    if (data.length == 0) {
-        if (warning) *warning = @"preset file is empty";
+    NSError *parseError = nil;
+    id payload = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&parseError];
+    if (![payload isKindOfClass:[NSDictionary class]] || parseError) {
         return NO;
     }
 
-    if (memchr(data.bytes, '\0', data.length) != NULL) {
-        if (warning) *warning = @"preset file appears binary";
+    NSDictionary *metadata = (NSDictionary *)payload;
+    NSNumber *schemaVersion = metadata[@"schema_version"];
+    NSString *storedZipPath = metadata[@"zip_path"];
+    NSNumber *storedMtime = metadata[@"zip_mtime_sec"];
+    NSNumber *storedSize = metadata[@"zip_size_bytes"];
+
+    if (![schemaVersion isKindOfClass:[NSNumber class]] || schemaVersion.integerValue != 1) {
+        return NO;
+    }
+    if (![storedZipPath isKindOfClass:[NSString class]] ||
+        ![[storedZipPath stringByStandardizingPath] isEqualToString:[zipPath stringByStandardizingPath]]) {
+        return NO;
+    }
+    if (![storedMtime isKindOfClass:[NSNumber class]] || ![storedSize isKindOfClass:[NSNumber class]]) {
         return NO;
     }
 
-    NSString *content = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (!content) {
-        content = [[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding];
-    }
+    if (mtime) *mtime = storedMtime.doubleValue;
+    if (sizeByte) *sizeByte = storedSize.unsignedLongLongValue;
+    return YES;
+}
 
-    if (!content) {
-        if (warning) *warning = @"preset text encoding is unsupported";
+- (BOOL)writeZipCacheMetadataAtPath:(NSString *)metadataPath
+                            zipPath:(NSString *)zipPath
+                              mtime:(NSTimeInterval)mtime
+                           sizeByte:(uint64_t)sizeByte
+                   extractDurationMs:(NSInteger)extractDurationMs {
+    if (metadataPath.length == 0 || zipPath.length == 0) {
         return NO;
     }
 
-    if (!PMIsLikelyMilkPresetContent(content)) {
-        if (warning) *warning = @"missing [preset..] header";
+    NSDictionary *metadata = @{
+        @"schema_version": @1,
+        @"zip_path": [zipPath stringByStandardizingPath],
+        @"zip_mtime_sec": @(mtime),
+        @"zip_size_bytes": @(sizeByte),
+        @"last_extract_duration_ms": @(extractDurationMs),
+        @"last_verified_utc": @((NSInteger)time(NULL)),
+    };
+
+    NSError *serializeError = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:metadata options:0 error:&serializeError];
+    if (!jsonData || serializeError) {
+        return NO;
+    }
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *metadataDir = [metadataPath stringByDeletingLastPathComponent];
+    if (metadataDir.length > 0) {
+        [fm createDirectoryAtPath:metadataDir withIntermediateDirectories:YES attributes:nil error:nil];
+    }
+
+    NSString *tmpPath = [metadataPath stringByAppendingString:@".tmp"];
+    [fm removeItemAtPath:tmpPath error:nil];
+
+    NSError *writeError = nil;
+    if (![jsonData writeToFile:tmpPath options:NSDataWritingAtomic error:&writeError]) {
+        [fm removeItemAtPath:tmpPath error:nil];
+        return NO;
+    }
+
+    [fm removeItemAtPath:metadataPath error:nil];
+    NSError *moveError = nil;
+    if (![fm moveItemAtPath:tmpPath toPath:metadataPath error:&moveError]) {
+        [fm removeItemAtPath:tmpPath error:nil];
         return NO;
     }
 
     return YES;
 }
 
-- (uint32_t)addValidatedPresetsFromPath:(NSString *)path recursive:(BOOL)recursive invalidCount:(NSUInteger *)invalidCount {
-    if (invalidCount) *invalidCount = 0;
+- (void)clearZipCacheAtRoot:(NSString *)extractRoot metadataPath:(NSString *)metadataPath {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if (extractRoot.length > 0) {
+        [fm removeItemAtPath:extractRoot error:nil];
+        [fm removeItemAtPath:[extractRoot stringByAppendingString:@".tmp"] error:nil];
+    }
+    if (metadataPath.length > 0) {
+        [fm removeItemAtPath:metadataPath error:nil];
+    }
+}
+
+- (uint32_t)addPresetsFromPath:(NSString *)path recursive:(BOOL)recursive {
     if (path.length == 0 || !_playlist) return 0;
 
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -134,20 +241,11 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
 
     uint32_t added = 0;
     for (NSString *candidatePath in candidatePaths) {
-        NSString *warning = nil;
-        if (![self isLikelyValidMilkPresetAtPath:candidatePath warning:&warning]) {
-            if (invalidCount) *invalidCount += 1;
-            NSString *safeReason = PMConsoleReasonOrDefault(warning);
-            FB2K_console_print("projectM: skipping invalid preset: ", [candidatePath UTF8String], " reason=", [safeReason UTF8String]);
-            continue;
-        }
-
         bool fileAdded = false;
         try {
             fileAdded = projectm_playlist_add_preset(_playlist, [candidatePath UTF8String], false);
         } catch (...) {
-            if (invalidCount) *invalidCount += 1;
-            FB2K_console_print("projectM: exception while adding preset, skipping: ", [candidatePath UTF8String]);
+            FB2K_console_print("projectM: exception while adding preset path, skipping: ", [candidatePath UTF8String]);
             continue;
         }
 
@@ -226,12 +324,56 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
         }
 
         NSString *extractRoot = [self zipExtractionDirectoryPath];
-        NSError *error = nil;
-        [fm removeItemAtPath:extractRoot error:nil];
-        if (![fm createDirectoryAtPath:extractRoot withIntermediateDirectories:YES attributes:nil error:&error]) {
-            FB2K_console_print("projectM: cannot create ZIP extraction path: ", [extractRoot UTF8String]);
+        NSString *metadataPath = [self zipExtractionMetadataPath];
+
+        NSTimeInterval currentMtime = 0;
+        uint64_t currentSize = 0;
+        if (![self zipFingerprintForPath:zipPath mtime:&currentMtime sizeByte:&currentSize]) {
+            FB2K_console_print("projectM: zip-cache cannot stat ZIP for fingerprinting.");
             return nil;
         }
+
+        NSTimeInterval cachedMtime = 0;
+        uint64_t cachedSize = 0;
+        BOOL metadataFile = NO;
+        BOOL metadataValid = [self readZipCacheMetadataAtPath:metadataPath
+                                               expectedZipPath:zipPath
+                                                         mtime:&cachedMtime
+                                                      sizeByte:&cachedSize
+                                                  metadataFile:&metadataFile];
+        BOOL fingerprintMatches = metadataValid && PMZipCacheFingerprintMatches(cachedMtime, cachedSize, currentMtime, currentSize);
+
+        BOOL cacheDirExists = NO;
+        BOOL cacheIsDir = NO;
+        cacheDirExists = [fm fileExistsAtPath:extractRoot isDirectory:&cacheIsDir] && cacheIsDir;
+        NSString *normalizedCachedRoot = cacheDirExists ? [self normalizedSingleTopLevelDirectoryForRoot:extractRoot] : nil;
+        BOOL cacheLooksValid = normalizedCachedRoot.length > 0 && [self isDirectoryPresetContainer:normalizedCachedRoot];
+
+        if (PMShouldReuseZipExtractionCache(metadataValid, fingerprintMatches, cacheLooksValid)) {
+            FB2K_console_print("projectM: zip-cache=hit");
+            return normalizedCachedRoot;
+        }
+
+        const char *missReason = "metadata_missing";
+        if (metadataFile && !metadataValid) {
+            missReason = "metadata_invalid";
+        } else if (metadataValid && !fingerprintMatches) {
+            missReason = "fingerprint_changed";
+        } else if (metadataValid && fingerprintMatches && !cacheLooksValid) {
+            missReason = "cache_invalid";
+        }
+
+        FB2K_console_print("projectM: zip-cache=miss reason=", missReason);
+        [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
+
+        NSString *extractTempRoot = [extractRoot stringByAppendingString:@".tmp"];
+        NSError *error = nil;
+        if (![fm createDirectoryAtPath:extractTempRoot withIntermediateDirectories:YES attributes:nil error:&error]) {
+            FB2K_console_print("projectM: cannot create temporary ZIP extraction path: ", [extractTempRoot UTF8String]);
+            return nil;
+        }
+
+        CFAbsoluteTime extractionStart = CFAbsoluteTimeGetCurrent();
 
         try {
             zipfs::init([zipPath UTF8String]);
@@ -242,7 +384,7 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
                 if (entryPath.length == 0) continue;
                 if ([entryPath hasPrefix:@"__MACOSX/"]) continue;
 
-                NSString *outputPath = [extractRoot stringByAppendingPathComponent:entryPath];
+                NSString *outputPath = [extractTempRoot stringByAppendingPathComponent:entryPath];
                 if (fi->is_dir) {
                     [fm createDirectoryAtPath:outputPath withIntermediateDirectories:YES attributes:nil error:nil];
                     continue;
@@ -262,11 +404,38 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
         }
 
         BOOL extractedDir = NO;
-        if (![fm fileExistsAtPath:extractRoot isDirectory:&extractedDir] || !extractedDir) {
+        if (![fm fileExistsAtPath:extractTempRoot isDirectory:&extractedDir] || !extractedDir) {
+            [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
             return nil;
         }
 
-        return [self normalizedSingleTopLevelDirectoryForRoot:extractRoot];
+        NSString *normalizedTempRoot = [self normalizedSingleTopLevelDirectoryForRoot:extractTempRoot];
+        if (![self isDirectoryPresetContainer:normalizedTempRoot]) {
+            FB2K_console_print("projectM: ZIP extraction produced no usable Presets data.");
+            [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
+            return nil;
+        }
+
+        NSError *moveError = nil;
+        if (![fm moveItemAtPath:extractTempRoot toPath:extractRoot error:&moveError]) {
+            FB2K_console_print("projectM: cannot finalize ZIP extraction cache path.");
+            [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
+            return nil;
+        }
+
+        NSString *normalizedExtractRoot = [self normalizedSingleTopLevelDirectoryForRoot:extractRoot];
+        NSInteger extractDurationMs = (NSInteger)((CFAbsoluteTimeGetCurrent() - extractionStart) * 1000.0);
+        FB2K_console_print("projectM: zip-cache extracted ms=", pfc::format_int((int64_t)extractDurationMs).c_str());
+
+        if (![self writeZipCacheMetadataAtPath:metadataPath
+                                       zipPath:zipPath
+                                         mtime:currentMtime
+                                      sizeByte:currentSize
+                              extractDurationMs:extractDurationMs]) {
+            FB2K_console_print("projectM: zip-cache metadata write failed; cache will refresh next startup.");
+        }
+
+        return normalizedExtractRoot;
     }
     @catch (NSException *exception) {
         FB2K_console_print("projectM: Objective-C exception in prepareDataDirectoryFromZipAtPath: ", [[exception description] UTF8String]);
@@ -390,27 +559,21 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
             projectm_set_texture_search_paths(_projectM, texPaths, 2);
 
             NSString *presetsPath = [activeDataDirPath stringByAppendingPathComponent:@"Presets"];
-            NSUInteger invalidCount = 0;
-            NSUInteger invalidCountForPath = 0;
-            uint32_t added = [self addValidatedPresetsFromPath:presetsPath recursive:YES invalidCount:&invalidCountForPath];
-            invalidCount += invalidCountForPath;
+            uint32_t added = [self addPresetsFromPath:presetsPath recursive:YES];
             if (added > 0) {
                 _activePresetsRootPath = presetsPath;
             }
 
             if (added == 0) {
-                added = [self addValidatedPresetsFromPath:activeDataDirPath recursive:loadedFromZip invalidCount:&invalidCountForPath];
-                invalidCount += invalidCountForPath;
+                added = [self addPresetsFromPath:activeDataDirPath recursive:loadedFromZip];
                 if (added > 0) {
                     _activePresetsRootPath = activeDataDirPath;
                 }
             }
 
-            if (invalidCount > 0) {
-                FB2K_console_print("projectM: invalid presets skipped count=", pfc::format_int((int64_t)invalidCount).c_str());
-            }
-
+            projectm_playlist_set_retry_count(_playlist, 0);
             projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
+            projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
 
             uint32_t totalPresets = projectm_playlist_size(_playlist);
             int presetIndex = -1;
@@ -488,6 +651,64 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     projectm_playlist_free_string(filename);
 }
 
+- (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message {
+    if (!_playlist) return;
+
+    NSString *safePresetName = PMFailedPresetConsoleName(presetFilename);
+    NSString *safeReason = PMConsoleReasonOrDefault(message);
+    FB2K_console_print("projectM: failed to load preset, skipping: ", [safePresetName UTF8String], " reason=", [safeReason UTF8String]);
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    BOOL contextLocked = NO;
+
+    @try {
+        if (cglContext) {
+            CGLLockContext(cglContext);
+            contextLocked = YES;
+            [[self openGLContext] makeCurrentContext];
+        }
+
+        uint32_t totalPresets = projectm_playlist_size(_playlist);
+        if (totalPresets > 0 && presetFilename.length > 0) {
+            NSString *normalizedFailed = [[presetFilename stringByStandardizingPath] stringByResolvingSymlinksInPath];
+            char **items = projectm_playlist_items(_playlist, 0, totalPresets);
+            uint32_t failedIndex = UINT32_MAX;
+            for (uint32_t i = 0; items && items[i]; ++i) {
+                NSString *candidatePath = @(items[i]);
+                NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+                if (PMPresetPathsMatch(normalizedCandidate, normalizedFailed)) {
+                    failedIndex = i;
+                    break;
+                }
+            }
+            if (items) projectm_playlist_free_string_array(items);
+
+            if (failedIndex != UINT32_MAX) {
+                projectm_playlist_remove_preset(_playlist, failedIndex);
+                totalPresets = projectm_playlist_size(_playlist);
+            }
+        }
+
+        if (PMShouldUseFallbackAfterPresetLoadFailure(totalPresets)) {
+            [self loadDefaultPresetFallback];
+            return;
+        }
+
+        uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
+        projectm_playlist_set_position(_playlist, randomIndex, true);
+        [self refreshCurrentPresetName:randomIndex showOverlay:YES];
+    }
+    @catch (NSException *exception) {
+        FB2K_console_print("projectM: Objective-C exception while handling preset load failure: ", [[exception description] UTF8String]);
+        [self loadDefaultPresetFallback];
+    }
+    @finally {
+        if (contextLocked) {
+            CGLUnlockContext(cglContext);
+        }
+    }
+}
+
 @end
 
 namespace {
@@ -498,6 +719,17 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     if (!view || !view->_playlist)
         return;
     [view refreshCurrentPresetName:(uint32_t)index showOverlay:!cfg_preset_shuffle];
+}
+
+static void callbackPresetSwitchFailed(const char *preset_filename, const char *message, void *user_data) {
+    ProjectMView *view = (__bridge ProjectMView *)user_data;
+    if (!view) return;
+
+    NSString *presetName = preset_filename ? @(preset_filename) : nil;
+    NSString *failureMessage = message ? @(message) : nil;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [view handlePresetLoadFailureForFilename:presetName message:failureMessage];
+    });
 }
 
 } // anonymous namespace

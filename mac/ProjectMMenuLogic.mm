@@ -125,3 +125,33 @@ NSString *PMConsoleReasonOrDefault(NSString *reason) {
 
     return @"unknown validation failure";
 }
+
+BOOL PMShouldPrevalidatePresetFilesOnStartup(void) {
+    return NO;
+}
+
+NSString *PMFailedPresetConsoleName(NSString *presetPathOrName) {
+    if (presetPathOrName == nil || presetPathOrName.length == 0) {
+        return @"(unknown preset)";
+    }
+
+    NSString *filename = [presetPathOrName lastPathComponent];
+    return filename.length > 0 ? filename : presetPathOrName;
+}
+
+BOOL PMShouldUseFallbackAfterPresetLoadFailure(NSUInteger remainingPresetCount) {
+    return remainingPresetCount == 0;
+}
+
+BOOL PMShouldReuseZipExtractionCache(BOOL hasValidMetadata,
+                                     BOOL fingerprintMatches,
+                                     BOOL cacheLooksValid) {
+    return hasValidMetadata && fingerprintMatches && cacheLooksValid;
+}
+
+BOOL PMZipCacheFingerprintMatches(NSTimeInterval cachedMTime,
+                                  uint64_t cachedSizeBytes,
+                                  NSTimeInterval currentMTime,
+                                  uint64_t currentSizeBytes) {
+    return cachedMTime == currentMTime && cachedSizeBytes == currentSizeBytes;
+}
