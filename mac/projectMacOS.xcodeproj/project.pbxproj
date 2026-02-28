@@ -10,6 +10,7 @@
 		2BE2F6812F4F919E0094DADC /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6802F4F919D0094DADC /* OpenGL.framework */; };
 		2BE2F6832F4F91A60094DADC /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6822F4F91A60094DADC /* Cocoa.framework */; };
 		2BE2F6852F4F91B00094DADC /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6842F4F91B00094DADC /* CoreVideo.framework */; };
+		UTUTUT01UTUTUT01UTUTUT01 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = UTUTUT02UTUTUT02UTUTUT02 /* UniformTypeIdentifiers.framework */; };
 		2BE2F6912F4F9B390094DADC /* libpfc-Mac.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6902F4F9B390094DADC /* libpfc-Mac.a */; };
 		2BE2F6932F4F9B510094DADC /* libfoobar2000_SDK.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6922F4F9B510094DADC /* libfoobar2000_SDK.a */; };
 		2BE2F6952F4F9B740094DADC /* libfoobar2000_SDK_helpers.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BE2F6942F4F9B740094DADC /* libfoobar2000_SDK_helpers.a */; };
@@ -34,6 +35,7 @@
 		2BE2F6802F4F919D0094DADC /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		2BE2F6822F4F91A60094DADC /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		2BE2F6842F4F91B00094DADC /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		UTUTUT02UTUTUT02UTUTUT02 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		2BE2F6862F4F929E0094DADC /* libpfc-Mac.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libpfc-Mac.a"; path = "../../../SDK-2025-03-07/pfc/build/Release/libpfc-Mac.a"; sourceTree = "<group>"; };
 		2BE2F6882F4F92C40094DADC /* libfoobar2000_SDK.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfoobar2000_SDK.a; path = "../../../SDK-2025-03-07/foobar2000/SDK/build/Release/libfoobar2000_SDK.a"; sourceTree = "<group>"; };
 		2BE2F68A2F4F971F0094DADC /* libfoobar2000_SDK_helpers.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfoobar2000_SDK_helpers.a; path = "../../../SDK-2025-03-07/foobar2000/helpers/build/Release/libfoobar2000_SDK_helpers.a"; sourceTree = "<group>"; };
@@ -71,6 +73,7 @@
 				2BE2F6852F4F91B00094DADC /* CoreVideo.framework in Frameworks */,
 				2BE2F6832F4F91A60094DADC /* Cocoa.framework in Frameworks */,
 				2BE2F6812F4F919E0094DADC /* OpenGL.framework in Frameworks */,
+				UTUTUT01UTUTUT01UTUTUT01 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +149,7 @@
 				2BE2F6842F4F91B00094DADC /* CoreVideo.framework */,
 				2BE2F6822F4F91A60094DADC /* Cocoa.framework */,
 				2BE2F6802F4F919D0094DADC /* OpenGL.framework */,
+				UTUTUT02UTUTUT02UTUTUT02 /* UniformTypeIdentifiers.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";

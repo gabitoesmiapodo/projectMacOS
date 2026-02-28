@@ -3,6 +3,7 @@
 #import "ProjectMMenuLogic.h"
 
 #import <objc/runtime.h>
+#import <UniformTypeIdentifiers/UTCoreTypes.h>
 #include <exception>
 
 #pragma clang diagnostic push
@@ -35,9 +36,7 @@
         for (uint32_t i = 0; items && items[i]; ++i) {
             NSString *candidatePath = @(items[i]);
             NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
-            if ([normalizedCandidate isEqualToString:targetPath] ||
-                [normalizedCandidate hasSuffix:targetPath] ||
-                [targetPath hasSuffix:normalizedCandidate]) {
+            if ([normalizedCandidate isEqualToString:targetPath]) {
                 selectedIndex = i;
                 foundIndex = YES;
                 break;
@@ -300,13 +299,16 @@
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *presetBrowser = [menu addItemWithTitle:@"Preset"
+    NSMenuItem *presetBrowser = [menu addItemWithTitle:@"Presets"
                                                 action:nil
                                          keyEquivalent:@""];
-    NSMenu *presetMenu = [[NSMenu alloc] initWithTitle:@"Preset"];
+    [self applySystemSymbol:@"music.note.list" toMenuItem:presetBrowser];
+    NSMenu *presetMenu = [[NSMenu alloc] initWithTitle:@"Presets"];
     presetMenu.delegate = self;
     objc_setAssociatedObject(presetMenu, kPresetMenuPathKey, [self presetsDirectoryPath], OBJC_ASSOCIATION_COPY_NONATOMIC);
     presetBrowser.submenu = presetMenu;
+
+    [menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaused)
                                         action:@selector(togglePausePlayback:)
@@ -331,6 +333,94 @@
                                    keyEquivalent:@""];
     random.target = self;
     [self applySystemSymbol:@"shuffle" toMenuItem:random];
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    // MARK: Favorites submenu
+    NSMenuItem *favoritesItem = [menu addItemWithTitle:@"Favorites" action:nil keyEquivalent:@""];
+    NSMenu *favoritesMenu = [[NSMenu alloc] initWithTitle:@"Favorites"];
+
+    // --- Save Current ---
+    NSMenuItem *saveCurrentItem = [favoritesMenu addItemWithTitle:@"Save Current"
+                                                           action:@selector(saveCurrentToFavorites:)
+                                                    keyEquivalent:@""];
+    saveCurrentItem.target = self;
+
+    NSString *currentPath = @(cfg_preset_name.get().get_ptr());
+    NSString *currentName = [currentPath lastPathComponent];
+
+    static NSSet<NSString *> *sentinelNames = nil;
+    static dispatch_once_t sentinelToken;
+    dispatch_once(&sentinelToken, ^{
+        sentinelNames = [NSSet setWithArray:@[@"idle://", @"fallback-default.milk", @"projectMacOS.milk"]];
+    });
+
+    BOOL hasActivePreset = currentName.length > 0 && ![sentinelNames containsObject:currentPath];
+    BOOL isAlreadyFavorite = hasActivePreset && PMFavoritesContainsName(self.loadedFavorites, currentName);
+
+    if (!hasActivePreset || isAlreadyFavorite) {
+        saveCurrentItem.enabled = NO;
+        if (isAlreadyFavorite) {
+            saveCurrentItem.toolTip = @"Already in Favorites";
+        }
+    }
+
+    // --- Manage submenu ---
+    NSMenuItem *manageItem = [favoritesMenu addItemWithTitle:@"Manage" action:nil keyEquivalent:@""];
+    NSMenu *manageMenu = [[NSMenu alloc] initWithTitle:@"Manage"];
+
+    NSMenuItem *saveListItem = [manageMenu addItemWithTitle:@"Save List"
+                                                     action:@selector(saveFavoritesList:)
+                                              keyEquivalent:@""];
+    saveListItem.target = self;
+
+    NSMenuItem *loadListItem = [manageMenu addItemWithTitle:@"Load List"
+                                                     action:@selector(loadFavoritesList:)
+                                              keyEquivalent:@""];
+    loadListItem.target = self;
+    manageItem.submenu = manageMenu;
+
+    [favoritesMenu addItem:[NSMenuItem separatorItem]];
+
+    // --- Favorites list ---
+    NSMutableArray<NSDictionary *> *favorites = self.loadedFavorites;
+
+    if (favorites.count == 0) {
+        NSMenuItem *emptyItem = [favoritesMenu addItemWithTitle:@"No favorites yet"
+                                                         action:nil
+                                                  keyEquivalent:@""];
+        emptyItem.enabled = NO;
+    } else {
+        for (NSDictionary *entry in favorites) {
+            NSString *displayName = PMFavoriteDisplayName(entry);
+            NSMenuItem *favItem = [favoritesMenu addItemWithTitle:displayName
+                                                           action:nil
+                                                    keyEquivalent:@""];
+            [self applyMenuTitleLimitToItem:favItem fullTitle:displayName];
+
+            if ([currentName isEqualToString:entry[@"name"]]) {
+                favItem.state = NSControlStateValueOn;
+            }
+
+            NSMenu *favSubmenu = [[NSMenu alloc] initWithTitle:displayName];
+
+            NSMenuItem *loadItem = [favSubmenu addItemWithTitle:@"Load"
+                                                         action:@selector(loadFavoriteFromMenuItem:)
+                                                  keyEquivalent:@""];
+            loadItem.target = self;
+            loadItem.representedObject = entry;
+
+            NSMenuItem *removeItem = [favSubmenu addItemWithTitle:@"Remove"
+                                                           action:@selector(removeFavoriteFromMenuItem:)
+                                                    keyEquivalent:@""];
+            removeItem.target = self;
+            removeItem.representedObject = entry;
+
+            favItem.submenu = favSubmenu;
+        }
+    }
+
+    favoritesItem.submenu = favoritesMenu;
 
     [menu addItem:[NSMenuItem separatorItem]];
 
@@ -672,6 +762,145 @@
     if (cglContext) {
         CGLUnlockContext(cglContext);
     }
+}
+
+- (NSMutableArray<NSDictionary *> *)loadedFavorites {
+    if (!_favorites) {
+        NSString *json = @(cfg_preset_favorites.get().get_ptr());
+        _favorites = PMFavoritesDeserialize(json);
+    }
+    return _favorites;
+}
+
+- (void)persistFavorites {
+    NSString *json = PMFavoritesSerialize(self.loadedFavorites);
+    cfg_preset_favorites = json ? [json UTF8String] : "";
+}
+
+- (BOOL)isCurrentPresetAFavorite {
+    NSString *current = @(cfg_preset_name.get().get_ptr());
+    NSString *name = [current lastPathComponent];
+    if (name.length == 0) return NO;
+    return PMFavoritesContainsName(self.loadedFavorites, name);
+}
+
+- (void)saveCurrentToFavorites:(id)sender {
+    (void)sender;
+    NSString *fullPath = _currentPresetPath ?: @(cfg_preset_name.get().get_ptr());
+    NSString *name = [fullPath lastPathComponent];
+    if (name.length == 0) return;
+    if (PMFavoritesContainsName(self.loadedFavorites, name)) return;
+
+    NSString *presetsDir = [self presetsDirectoryPath];
+    NSString *storedPath = PMFavoriteStoredPathForFullPath(fullPath, presetsDir);
+    if (storedPath.length == 0) storedPath = fullPath;
+
+    [self.loadedFavorites addObject:@{@"name": name, @"path": storedPath}];
+    [self persistFavorites];
+}
+
+- (void)loadFavoriteEntry:(NSDictionary *)entry {
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    id rawPath = entry[@"path"];
+    NSString *path = [rawPath isKindOfClass:[NSString class]] ? (NSString *)rawPath : @"";
+    if (path.length == 0) return;
+
+    if (![path hasPrefix:@"/"]) {
+        path = [[self presetsDirectoryPath] stringByAppendingPathComponent:path];
+    }
+
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        NSString *displayPath = entry[@"path"] ?: entry[@"name"] ?: @"(unknown)";
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = [NSString stringWithFormat:@"Preset couldn't be found in \"%@\".", displayPath];
+        alert.alertStyle = NSAlertStyleWarning;
+        [alert addButtonWithTitle:@"OK"];
+        [alert runModal];
+        return;
+    }
+
+    [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
+    cfg_preset_shuffle = false;
+    _pendingShuffleEnable = NO;
+    _shuffleEnableDeadline = 0.0;
+}
+
+- (void)loadFavoriteFromMenuItem:(id)sender {
+    NSDictionary *entry = [(NSMenuItem *)sender representedObject];
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    [self loadFavoriteEntry:entry];
+}
+
+- (void)removeFavoriteFromMenuItem:(id)sender {
+    NSDictionary *entry = [(NSMenuItem *)sender representedObject];
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    [self promptRemoveFavoriteEntry:entry];
+}
+
+- (void)promptRemoveFavoriteEntry:(NSDictionary *)entry {
+    NSString *displayName = PMFavoriteDisplayName(entry);
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.messageText = [NSString stringWithFormat:@"Remove \"%@\" from Favorites?", displayName];
+    alert.alertStyle = NSAlertStyleWarning;
+    [alert addButtonWithTitle:@"Remove"];
+    [alert addButtonWithTitle:@"Cancel"];
+    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+    NSString *name = entry[@"name"] ?: @"";
+    NSInteger idx = PMFavoritesIndexOfName(self.loadedFavorites, name);
+    if (idx >= 0) {
+        [self.loadedFavorites removeObjectAtIndex:(NSUInteger)idx];
+        [self persistFavorites];
+    }
+}
+
+- (void)saveFavoritesList:(id)sender {
+    (void)sender;
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.allowedContentTypes = @[UTTypeJSON];
+    panel.nameFieldStringValue = @"favorites.json";
+    if ([panel runModal] != NSModalResponseOK) return;
+    NSString *json = PMFavoritesSerialize(self.loadedFavorites);
+    NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding] ?: [NSData data];
+    NSError *error = nil;
+    if (![data writeToURL:panel.URL options:NSDataWritingAtomic error:&error]) {
+        FB2K_console_print("projectM: favorites export failed: ",
+                           [[error localizedDescription] UTF8String]);
+    }
+}
+
+- (void)loadFavoritesList:(id)sender {
+    (void)sender;
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.allowedContentTypes = @[UTTypeJSON];
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    if ([panel runModal] != NSModalResponseOK) return;
+
+    NSError *error = nil;
+    NSData *data = [NSData dataWithContentsOfURL:panel.URL options:0 error:&error];
+    if (!data) {
+        FB2K_console_print("projectM: favorites import read failed: ",
+                           [[error localizedDescription] UTF8String]);
+        return;
+    }
+
+    NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    NSMutableArray *imported = PMFavoritesDeserialize(json);
+
+    NSUInteger added = 0, skipped = 0;
+    for (NSDictionary *entry in imported) {
+        if (!PMFavoriteImportEntryIsValid(entry)) { skipped++; continue; }
+        if (PMFavoritesContainsName(self.loadedFavorites, entry[@"name"])) { skipped++; continue; }
+        [self.loadedFavorites addObject:entry];
+        added++;
+    }
+
+    if (added > 0) [self persistFavorites];
+
+    FB2K_console_print("projectM: favorites import: ",
+                       [[NSString stringWithFormat:@"%lu added, %lu skipped",
+                         (unsigned long)added, (unsigned long)skipped] UTF8String]);
 }
 
 @end
