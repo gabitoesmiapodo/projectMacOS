@@ -220,20 +220,25 @@
 }
 
 - (void)testContextMenuPlacesPreviousBeforeNext {
-    NSString *testPath = @(__FILE__);
-    NSString *macDir = [[testPath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-    NSString *menuPath = [macDir stringByAppendingPathComponent:@"ProjectMView+Menu.mm"];
+    // Build the context menu at runtime instead of parsing the source file.
+    NSMenu *menu = PMVisualizationContextMenu();
+    XCTAssertNotNil(menu);
 
-    NSError *error = nil;
-    NSString *content = [NSString stringWithContentsOfFile:menuPath encoding:NSUTF8StringEncoding error:&error];
-    XCTAssertNotNil(content);
-    XCTAssertNil(error);
+    NSInteger previousIndex = -1;
+    NSInteger nextIndex = -1;
 
-    NSRange prevRange = [content rangeOfString:@"addItemWithTitle:@\"Previous\""];
-    NSRange nextRange = [content rangeOfString:@"addItemWithTitle:@\"Next\""];
-    XCTAssertNotEqual(prevRange.location, NSNotFound);
-    XCTAssertNotEqual(nextRange.location, NSNotFound);
-    XCTAssertLessThan(prevRange.location, nextRange.location);
+    for (NSInteger i = 0; i < menu.numberOfItems; i++) {
+        NSMenuItem *item = [menu itemAtIndex:i];
+        if ([[item title] isEqualToString:@"Previous"]) {
+            previousIndex = i;
+        } else if ([[item title] isEqualToString:@"Next"]) {
+            nextIndex = i;
+        }
+    }
+
+    XCTAssertNotEqual(previousIndex, -1);
+    XCTAssertNotEqual(nextIndex, -1);
+    XCTAssertLessThan(previousIndex, nextIndex);
 }
 
 - (void)testVisualizationFullscreenOptionsLimitFullscreenToSingleScreen {
