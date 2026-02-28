@@ -3,6 +3,7 @@
 #import "ProjectMMenuLogic.h"
 
 #import <objc/runtime.h>
+#import <UniformTypeIdentifiers/UTCoreTypes.h>
 #include <exception>
 
 #pragma clang diagnostic push
@@ -672,6 +673,125 @@
     if (cglContext) {
         CGLUnlockContext(cglContext);
     }
+}
+
+- (NSMutableArray<NSDictionary *> *)loadedFavorites {
+    if (!_favorites) {
+        NSString *json = @(cfg_preset_favorites.get().get_ptr());
+        _favorites = PMFavoritesDeserialize(json);
+    }
+    return _favorites;
+}
+
+- (void)persistFavorites {
+    NSString *json = PMFavoritesSerialize(self.loadedFavorites);
+    cfg_preset_favorites = json ? [json UTF8String] : "";
+}
+
+- (BOOL)isCurrentPresetAFavorite {
+    NSString *current = @(cfg_preset_name.get().get_ptr());
+    NSString *name = [current lastPathComponent];
+    if (name.length == 0) return NO;
+    return PMFavoritesContainsName(self.loadedFavorites, name);
+}
+
+- (void)saveCurrentToFavorites:(id)sender {
+    (void)sender;
+    NSString *path = @(cfg_preset_name.get().get_ptr());
+    NSString *name = [path lastPathComponent];
+    if (name.length == 0) return;
+    if (PMFavoritesContainsName(self.loadedFavorites, name)) return;
+    [self.loadedFavorites addObject:@{@"name": name, @"path": path}];
+    [self persistFavorites];
+}
+
+- (void)loadFavoriteEntry:(NSDictionary *)entry {
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    NSString *path = entry[@"path"] ?: @"";
+    if (path.length > 0) {
+        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
+    }
+    cfg_preset_shuffle = false;
+    _pendingShuffleEnable = NO;
+    _shuffleEnableDeadline = 0.0;
+}
+
+- (void)loadFavoriteFromMenuItem:(id)sender {
+    NSDictionary *entry = [(NSMenuItem *)sender representedObject];
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    [self loadFavoriteEntry:entry];
+}
+
+- (void)removeFavoriteFromMenuItem:(id)sender {
+    NSDictionary *entry = [(NSMenuItem *)sender representedObject];
+    if (![entry isKindOfClass:[NSDictionary class]]) return;
+    [self promptRemoveFavoriteEntry:entry];
+}
+
+- (void)promptRemoveFavoriteEntry:(NSDictionary *)entry {
+    NSString *displayName = PMFavoriteDisplayName(entry);
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.messageText = [NSString stringWithFormat:@"Remove \"%@\" from Favorites?", displayName];
+    alert.alertStyle = NSAlertStyleWarning;
+    [alert addButtonWithTitle:@"Remove"];
+    [alert addButtonWithTitle:@"Cancel"];
+    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+    NSString *name = entry[@"name"] ?: @"";
+    NSInteger idx = PMFavoritesIndexOfName(self.loadedFavorites, name);
+    if (idx >= 0) {
+        [self.loadedFavorites removeObjectAtIndex:(NSUInteger)idx];
+        [self persistFavorites];
+    }
+}
+
+- (void)saveFavoritesList:(id)sender {
+    (void)sender;
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.allowedContentTypes = @[UTTypeJSON];
+    panel.nameFieldStringValue = @"favorites.json";
+    if ([panel runModal] != NSModalResponseOK) return;
+    NSString *json = PMFavoritesSerialize(self.loadedFavorites);
+    NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding] ?: [NSData data];
+    NSError *error = nil;
+    if (![data writeToURL:panel.URL options:NSDataWritingAtomic error:&error]) {
+        FB2K_console_print("projectM: favorites export failed: ",
+                           [[error localizedDescription] UTF8String]);
+    }
+}
+
+- (void)loadFavoritesList:(id)sender {
+    (void)sender;
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.allowedContentTypes = @[UTTypeJSON];
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    if ([panel runModal] != NSModalResponseOK) return;
+
+    NSError *error = nil;
+    NSData *data = [NSData dataWithContentsOfURL:panel.URL options:0 error:&error];
+    if (!data) {
+        FB2K_console_print("projectM: favorites import read failed: ",
+                           [[error localizedDescription] UTF8String]);
+        return;
+    }
+
+    NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    NSMutableArray *imported = PMFavoritesDeserialize(json);
+
+    NSUInteger added = 0, skipped = 0;
+    for (NSDictionary *entry in imported) {
+        if (!PMFavoriteImportEntryIsValid(entry)) { skipped++; continue; }
+        if (PMFavoritesContainsName(self.loadedFavorites, entry[@"name"])) { skipped++; continue; }
+        [self.loadedFavorites addObject:entry];
+        added++;
+    }
+
+    if (added > 0) [self persistFavorites];
+
+    FB2K_console_print("projectM: favorites import: ",
+                       [[NSString stringWithFormat:@"%lu added, %lu skipped",
+                         (unsigned long)added, (unsigned long)skipped] UTF8String]);
 }
 
 @end
