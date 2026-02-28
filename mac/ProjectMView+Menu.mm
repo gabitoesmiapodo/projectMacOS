@@ -785,7 +785,7 @@
 
 - (void)saveCurrentToFavorites:(id)sender {
     (void)sender;
-    NSString *path = @(cfg_preset_name.get().get_ptr());
+    NSString *path = _currentPresetPath ?: @(cfg_preset_name.get().get_ptr());
     NSString *name = [path lastPathComponent];
     if (name.length == 0) return;
     if (PMFavoritesContainsName(self.loadedFavorites, name)) return;
