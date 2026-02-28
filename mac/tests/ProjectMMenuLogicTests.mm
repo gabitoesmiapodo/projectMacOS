@@ -219,4 +219,104 @@
     XCTAssertEqual(presentationValue.unsignedIntegerValue, expectedPresentation);
 }
 
+// MARK: - Favorites helpers
+
+- (void)testFavoritesDeserializeHandlesEmptyAndNilInput {
+    XCTAssertEqualObjects(PMFavoritesDeserialize(nil), @[]);
+    XCTAssertEqualObjects(PMFavoritesDeserialize(@""), @[]);
+}
+
+- (void)testFavoritesDeserializeParsesValidJSON {
+    NSString *json = @"[{\"name\":\"foo.milk\",\"path\":\"/tmp/foo.milk\"}]";
+    NSMutableArray *result = PMFavoritesDeserialize(json);
+    XCTAssertEqual(result.count, 1U);
+    XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
+    XCTAssertEqualObjects(result[0][@"path"], @"/tmp/foo.milk");
+}
+
+- (void)testFavoritesDeserializeDropsInvalidEntries {
+    NSString *json = @"[{\"name\":\"foo.milk\"},{\"path\":\"/only-path\"},{\"name\":\"bad.milk\",\"path\":123},\"notadict\",{}]";
+    NSMutableArray *result = PMFavoritesDeserialize(json);
+    XCTAssertEqual(result.count, 1U);
+    XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
+}
+
+- (void)testFavoritesDeserializeRejectsNonArrayAndGarbage {
+    XCTAssertEqualObjects(PMFavoritesDeserialize(@"not json"), @[]);
+    XCTAssertEqualObjects(PMFavoritesDeserialize(@"{}"), @[]);
+}
+
+- (void)testFavoritesSerializeRoundTrips {
+    NSArray *input = @[@{@"name": @"foo.milk", @"path": @"/tmp/foo.milk"}];
+    NSString *json = PMFavoritesSerialize(input);
+    XCTAssertTrue(json.length > 0);
+    NSMutableArray *result = PMFavoritesDeserialize(json);
+    XCTAssertEqual(result.count, 1U);
+    XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
+    XCTAssertEqualObjects(result[0][@"path"], @"/tmp/foo.milk");
+}
+
+- (void)testFavoritesSerializeReturnsEmptyStringForEmptyOrNilInput {
+    XCTAssertEqualObjects(PMFavoritesSerialize(@[]), @"");
+    XCTAssertEqualObjects(PMFavoritesSerialize(nil), @"");
+}
+
+- (void)testFavoritesContainsNameFindsExistingAndMissingEntries {
+    NSArray *favorites = @[@{@"name": @"foo.milk"}, @{@"name": @"bar.milk"}];
+    XCTAssertTrue(PMFavoritesContainsName(favorites, @"foo.milk"));
+    XCTAssertTrue(PMFavoritesContainsName(favorites, @"bar.milk"));
+    XCTAssertFalse(PMFavoritesContainsName(favorites, @"baz.milk"));
+}
+
+- (void)testFavoritesContainsNameHandlesEmptyListAndEdgeCases {
+    XCTAssertFalse(PMFavoritesContainsName(@[], @"foo.milk"));
+    XCTAssertFalse(PMFavoritesContainsName(nil, @"foo.milk"));
+    XCTAssertFalse(PMFavoritesContainsName(@[], nil));
+}
+
+- (void)testFavoritesIndexOfNameReturnsCorrectIndexOrMinusOne {
+    NSArray *favorites = @[@{@"name": @"foo.milk"}, @{@"name": @"bar.milk"}];
+    XCTAssertEqual(PMFavoritesIndexOfName(favorites, @"foo.milk"), 0);
+    XCTAssertEqual(PMFavoritesIndexOfName(favorites, @"bar.milk"), 1);
+    XCTAssertEqual(PMFavoritesIndexOfName(favorites, @"baz.milk"), -1);
+    XCTAssertEqual(PMFavoritesIndexOfName(nil, @"foo.milk"), -1);
+    XCTAssertEqual(PMFavoritesIndexOfName(@[], @"foo.milk"), -1);
+}
+
+- (void)testFavoriteDisplayNameStripsExtensionAndPath {
+    XCTAssertEqualObjects(PMFavoriteDisplayName(@{@"name": @"My Preset.milk"}), @"My Preset");
+    XCTAssertEqualObjects(PMFavoriteDisplayName(@{@"name": @"Folder/Deep.milk"}), @"Deep");
+}
+
+- (void)testFavoriteDisplayNameHandlesMissingOrEmptyName {
+    XCTAssertEqualObjects(PMFavoriteDisplayName(@{}), @"(unknown)");
+    XCTAssertEqualObjects(PMFavoriteDisplayName(@{@"name": @""}), @"(unknown)");
+    XCTAssertEqualObjects(PMFavoriteDisplayName(@{@"path": @"/tmp/foo.milk"}), @"(unknown)");
+}
+
+- (void)testFavoriteImportEntryIsValidAcceptsValidDicts {
+    XCTAssertTrue(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk"}));
+    XCTAssertTrue(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk", @"path": @"/tmp/foo.milk"}));
+}
+
+- (void)testFavoriteImportEntryIsValidRejectsInvalidInput {
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(nil));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@"string"));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@42));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @""}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"path": @"/tmp/foo.milk"}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk", @"path": @42}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk", @"path": @""}));
+}
+
+- (void)testFavoriteStoredPathForFullPathReturnsRelativeWithinPresetsDir {
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets/foo.milk", @"/a/Presets"), @"foo.milk");
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets/Sub/bar.milk", @"/a/Presets"), @"Sub/bar.milk");
+}
+
+- (void)testFavoriteStoredPathForFullPathDoesNotMatchPrefixWithoutBoundary {
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets2/foo.milk", @"/a/Presets"), @"/a/Presets2/foo.milk");
+}
+
 @end

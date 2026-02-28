@@ -9,6 +9,7 @@
 extern cfg_bool cfg_preset_shuffle;
 extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
+extern cfg_string cfg_preset_favorites;
 
 bool PMIsMusicPlaybackActive(void);
 void PMSyncMusicPlaybackState(void);
@@ -40,6 +41,8 @@ extern const void *kPresetMenuPathKey;
     NSWindow *_helpWindow;
     NSTextView *_helpTextView;
     NSString *_activePresetsRootPath;
+    NSMutableArray *_favorites;
+    NSString *_currentPresetPath;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
@@ -113,4 +116,24 @@ extern const void *kPresetMenuPathKey;
 - (void)processPendingPresetRequestInRenderLoop;
 /// Close help window safely during teardown.
 - (void)cleanupHelpWindow;
+/// Lazy-load favorites from cfg_preset_favorites. Returns _favorites, creating it if nil.
+- (NSMutableArray<NSDictionary *> *)loadedFavorites;
+/// Serialize _favorites back to cfg_preset_favorites.
+- (void)persistFavorites;
+/// Return YES if the currently active preset (cfg_preset_name) is in the favorites list.
+- (BOOL)isCurrentPresetAFavorite;
+/// Save the current preset to favorites if not already present.
+- (void)saveCurrentToFavorites:(id)sender;
+/// Load a favorite entry: enqueue select-path request and disable shuffle.
+- (void)loadFavoriteEntry:(NSDictionary *)entry;
+/// Action target for "Load" items in favorite submenus.
+- (void)loadFavoriteFromMenuItem:(id)sender;
+/// Action target for "Remove" items in favorite submenus; shows confirmation alert.
+- (void)removeFavoriteFromMenuItem:(id)sender;
+/// Show NSAlert asking for confirmation, then remove entry from favorites.
+- (void)promptRemoveFavoriteEntry:(NSDictionary *)entry;
+/// Export favorites list via NSSavePanel to a .json file.
+- (void)saveFavoritesList:(id)sender;
+/// Import favorites list via NSOpenPanel from a .json file (deduplicates, validates).
+- (void)loadFavoritesList:(id)sender;
 @end
