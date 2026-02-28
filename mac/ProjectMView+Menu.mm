@@ -36,9 +36,7 @@
         for (uint32_t i = 0; items && items[i]; ++i) {
             NSString *candidatePath = @(items[i]);
             NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
-            if ([normalizedCandidate isEqualToString:targetPath] ||
-                [normalizedCandidate hasSuffix:targetPath] ||
-                [targetPath hasSuffix:normalizedCandidate]) {
+            if ([normalizedCandidate isEqualToString:targetPath]) {
                 selectedIndex = i;
                 foundIndex = YES;
                 break;
@@ -794,12 +792,8 @@
     if (PMFavoritesContainsName(self.loadedFavorites, name)) return;
 
     NSString *presetsDir = [self presetsDirectoryPath];
-    NSString *storedPath = fullPath;
-    if (presetsDir.length > 0 && [fullPath hasPrefix:presetsDir]) {
-        NSString *rel = [fullPath substringFromIndex:presetsDir.length];
-        if ([rel hasPrefix:@"/"]) rel = [rel substringFromIndex:1];
-        if (rel.length > 0) storedPath = rel;
-    }
+    NSString *storedPath = PMFavoriteStoredPathForFullPath(fullPath, presetsDir);
+    if (storedPath.length == 0) storedPath = fullPath;
 
     [self.loadedFavorites addObject:@{@"name": name, @"path": storedPath}];
     [self persistFavorites];
@@ -807,7 +801,8 @@
 
 - (void)loadFavoriteEntry:(NSDictionary *)entry {
     if (![entry isKindOfClass:[NSDictionary class]]) return;
-    NSString *path = entry[@"path"] ?: @"";
+    id rawPath = entry[@"path"];
+    NSString *path = [rawPath isKindOfClass:[NSString class]] ? (NSString *)rawPath : @"";
     if (path.length == 0) return;
 
     if (![path hasPrefix:@"/"]) {
