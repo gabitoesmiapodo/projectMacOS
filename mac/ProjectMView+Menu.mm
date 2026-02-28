@@ -301,13 +301,16 @@
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *presetBrowser = [menu addItemWithTitle:@"Preset"
+    NSMenuItem *presetBrowser = [menu addItemWithTitle:@"Presets"
                                                 action:nil
                                          keyEquivalent:@""];
-    NSMenu *presetMenu = [[NSMenu alloc] initWithTitle:@"Preset"];
+    [self applySystemSymbol:@"music.note.list" toMenuItem:presetBrowser];
+    NSMenu *presetMenu = [[NSMenu alloc] initWithTitle:@"Presets"];
     presetMenu.delegate = self;
     objc_setAssociatedObject(presetMenu, kPresetMenuPathKey, [self presetsDirectoryPath], OBJC_ASSOCIATION_COPY_NONATOMIC);
     presetBrowser.submenu = presetMenu;
+
+    [menu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaused)
                                         action:@selector(togglePausePlayback:)
@@ -785,20 +788,43 @@
 
 - (void)saveCurrentToFavorites:(id)sender {
     (void)sender;
-    NSString *path = _currentPresetPath ?: @(cfg_preset_name.get().get_ptr());
-    NSString *name = [path lastPathComponent];
+    NSString *fullPath = _currentPresetPath ?: @(cfg_preset_name.get().get_ptr());
+    NSString *name = [fullPath lastPathComponent];
     if (name.length == 0) return;
     if (PMFavoritesContainsName(self.loadedFavorites, name)) return;
-    [self.loadedFavorites addObject:@{@"name": name, @"path": path}];
+
+    NSString *presetsDir = [self presetsDirectoryPath];
+    NSString *storedPath = fullPath;
+    if (presetsDir.length > 0 && [fullPath hasPrefix:presetsDir]) {
+        NSString *rel = [fullPath substringFromIndex:presetsDir.length];
+        if ([rel hasPrefix:@"/"]) rel = [rel substringFromIndex:1];
+        if (rel.length > 0) storedPath = rel;
+    }
+
+    [self.loadedFavorites addObject:@{@"name": name, @"path": storedPath}];
     [self persistFavorites];
 }
 
 - (void)loadFavoriteEntry:(NSDictionary *)entry {
     if (![entry isKindOfClass:[NSDictionary class]]) return;
     NSString *path = entry[@"path"] ?: @"";
-    if (path.length > 0) {
-        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
+    if (path.length == 0) return;
+
+    if (![path hasPrefix:@"/"]) {
+        path = [[self presetsDirectoryPath] stringByAppendingPathComponent:path];
     }
+
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        NSString *displayPath = entry[@"path"] ?: entry[@"name"] ?: @"(unknown)";
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = [NSString stringWithFormat:@"Preset couldn't be found in \"%@\".", displayPath];
+        alert.alertStyle = NSAlertStyleWarning;
+        [alert addButtonWithTitle:@"OK"];
+        [alert runModal];
+        return;
+    }
+
+    [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
     cfg_preset_shuffle = false;
     _pendingShuffleEnable = NO;
     _shuffleEnableDeadline = 0.0;
