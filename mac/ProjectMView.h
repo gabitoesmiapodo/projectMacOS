@@ -42,6 +42,7 @@ extern const void *kPresetMenuPathKey;
     NSTextView *_helpTextView;
     NSString *_activePresetsRootPath;
     NSMutableArray *_favorites;
+    NSString *_currentPresetPath;
 }
 /// Render one projectM frame.
 - (void)renderFrame;

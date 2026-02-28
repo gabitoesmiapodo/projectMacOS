@@ -643,6 +643,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     NSString *fullName = @(filename);
     NSString *baseName = [fullName lastPathComponent];
     cfg_preset_name = [baseName UTF8String];
+    _currentPresetPath = fullName;
 
     if (showOverlay) {
         [self showPresetOverlayName:[baseName stringByDeletingPathExtension]];
