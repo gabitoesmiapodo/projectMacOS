@@ -335,6 +335,94 @@
 
     [menu addItem:[NSMenuItem separatorItem]];
 
+    // MARK: Favorites submenu
+    NSMenuItem *favoritesItem = [menu addItemWithTitle:@"Favorites" action:nil keyEquivalent:@""];
+    NSMenu *favoritesMenu = [[NSMenu alloc] initWithTitle:@"Favorites"];
+
+    // --- Save Current ---
+    NSMenuItem *saveCurrentItem = [favoritesMenu addItemWithTitle:@"Save Current"
+                                                           action:@selector(saveCurrentToFavorites:)
+                                                    keyEquivalent:@""];
+    saveCurrentItem.target = self;
+
+    NSString *currentPath = @(cfg_preset_name.get().get_ptr());
+    NSString *currentName = [currentPath lastPathComponent];
+
+    static NSSet<NSString *> *sentinelNames = nil;
+    static dispatch_once_t sentinelToken;
+    dispatch_once(&sentinelToken, ^{
+        sentinelNames = [NSSet setWithArray:@[@"idle://", @"fallback-default.milk", @"projectMacOS.milk"]];
+    });
+
+    BOOL hasActivePreset = currentName.length > 0 && ![sentinelNames containsObject:currentPath];
+    BOOL isAlreadyFavorite = hasActivePreset && PMFavoritesContainsName(self.loadedFavorites, currentName);
+
+    if (!hasActivePreset || isAlreadyFavorite) {
+        saveCurrentItem.enabled = NO;
+        if (isAlreadyFavorite) {
+            saveCurrentItem.toolTip = @"Already in Favorites";
+        }
+    }
+
+    // --- Manage submenu ---
+    NSMenuItem *manageItem = [favoritesMenu addItemWithTitle:@"Manage" action:nil keyEquivalent:@""];
+    NSMenu *manageMenu = [[NSMenu alloc] initWithTitle:@"Manage"];
+
+    NSMenuItem *saveListItem = [manageMenu addItemWithTitle:@"Save List"
+                                                     action:@selector(saveFavoritesList:)
+                                              keyEquivalent:@""];
+    saveListItem.target = self;
+
+    NSMenuItem *loadListItem = [manageMenu addItemWithTitle:@"Load List"
+                                                     action:@selector(loadFavoritesList:)
+                                              keyEquivalent:@""];
+    loadListItem.target = self;
+    manageItem.submenu = manageMenu;
+
+    [favoritesMenu addItem:[NSMenuItem separatorItem]];
+
+    // --- Favorites list ---
+    NSMutableArray<NSDictionary *> *favorites = self.loadedFavorites;
+
+    if (favorites.count == 0) {
+        NSMenuItem *emptyItem = [favoritesMenu addItemWithTitle:@"No favorites yet"
+                                                         action:nil
+                                                  keyEquivalent:@""];
+        emptyItem.enabled = NO;
+    } else {
+        for (NSDictionary *entry in favorites) {
+            NSString *displayName = PMFavoriteDisplayName(entry);
+            NSMenuItem *favItem = [favoritesMenu addItemWithTitle:displayName
+                                                           action:nil
+                                                    keyEquivalent:@""];
+            [self applyMenuTitleLimitToItem:favItem fullTitle:displayName];
+
+            if ([currentName isEqualToString:entry[@"name"]]) {
+                favItem.state = NSControlStateValueOn;
+            }
+
+            NSMenu *favSubmenu = [[NSMenu alloc] initWithTitle:displayName];
+
+            NSMenuItem *loadItem = [favSubmenu addItemWithTitle:@"Load"
+                                                         action:@selector(loadFavoriteFromMenuItem:)
+                                                  keyEquivalent:@""];
+            loadItem.target = self;
+            loadItem.representedObject = entry;
+
+            NSMenuItem *removeItem = [favSubmenu addItemWithTitle:@"Remove"
+                                                           action:@selector(removeFavoriteFromMenuItem:)
+                                                    keyEquivalent:@""];
+            removeItem.target = self;
+            removeItem.representedObject = entry;
+
+            favItem.submenu = favSubmenu;
+        }
+    }
+
+    favoritesItem.submenu = favoritesMenu;
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
     NSMenuItem *shuffle = [menu addItemWithTitle:@"Shuffle Presets"
                                           action:@selector(toggleShuffle:)
                                    keyEquivalent:@""];
