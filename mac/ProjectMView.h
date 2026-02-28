@@ -36,8 +36,6 @@ extern const void *kPresetMenuPathKey;
     NSString *_pendingPresetPath;
     BOOL _hasPausedShuffleProgress;
     NSUInteger _shuffleResumeToken;
-    NSTextField *_presetOverlayLabel;
-    NSUInteger _presetOverlayToken;
     NSWindow *_helpWindow;
     NSTextView *_helpTextView;
     NSString *_activePresetsRootPath;
@@ -82,8 +80,8 @@ extern const void *kPresetMenuPathKey;
 - (NSString *)presetsDirectoryPath;
 /// Return display-ready name for current preset.
 - (NSString *)currentPresetDisplayName;
-/// Persist and optionally display current preset name by playlist index.
-- (void)refreshCurrentPresetName:(uint32_t)index showOverlay:(BOOL)showOverlay;
+/// Persist current preset name by playlist index.
+- (void)refreshCurrentPresetName:(uint32_t)index;
 /// Handle runtime preset load failure and continue playback.
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
 @end
@@ -92,12 +90,6 @@ extern const void *kPresetMenuPathKey;
 
 /// Apply title truncation and tooltip behavior to a menu item.
 - (void)applyMenuTitleLimitToItem:(NSMenuItem *)item fullTitle:(NSString *)fullTitle;
-/// Show center overlay with current preset name.
-- (void)showPresetOverlayName:(NSString *)presetName;
-/// Show centered overlay text, optionally keeping it visible.
-- (void)showOverlayText:(NSString *)text persistent:(BOOL)persistent;
-/// Hide overlay text immediately.
-- (void)hideOverlayText;
 /// Populate a preset submenu from a filesystem directory.
 - (void)populatePresetMenu:(NSMenu *)menu atPath:(NSString *)directoryPath;
 /// Handle preset selection from a menu item.

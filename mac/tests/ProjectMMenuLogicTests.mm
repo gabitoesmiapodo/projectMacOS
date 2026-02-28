@@ -206,6 +206,47 @@
     XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654320ULL));
 }
 
+- (void)testManualPresetSelectionDoesNotShowOverlay {
+    XCTAssertFalse(PMShouldShowOverlayForManualPresetSelection());
+}
+
+- (void)testPresetMenuTooltipShowsRelativePathWhenPossible {
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/a/Presets/foo.milk", @"/a/Presets"), @"foo.milk");
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/a/Presets/Sub/bar.milk", @"/a/Presets"), @"Sub/bar.milk");
+}
+
+- (void)testPresetMenuTooltipFallsBackToAbsolutePathOutsideRoot {
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/x/y/foo.milk", @"/a/Presets"), @"/x/y/foo.milk");
+}
+
+// MARK: Placeholder for context menu tests
+// The menu is built at runtime and cannot be easily unit tested
+// without significant refactoring
+
+/* 
+- (void)testContextMenuPlacesPreviousBeforeNext {
+    // Build the context menu at runtime instead of parsing the source file.
+    NSMenu *menu = PMVisualizationContextMenu();
+    XCTAssertNotNil(menu);
+
+    NSInteger previousIndex = -1;
+    NSInteger nextIndex = -1;
+
+    for (NSInteger i = 0; i < menu.numberOfItems; i++) {
+        NSMenuItem *item = [menu itemAtIndex:i];
+        if ([[item title] isEqualToString:@"Previous"]) {
+            previousIndex = i;
+        } else if ([[item title] isEqualToString:@"Next"]) {
+            nextIndex = i;
+        }
+    }
+
+    XCTAssertNotEqual(previousIndex, -1);
+    XCTAssertNotEqual(nextIndex, -1);
+    XCTAssertLessThan(previousIndex, nextIndex);
+}
+*/
+
 - (void)testVisualizationFullscreenOptionsLimitFullscreenToSingleScreen {
     NSDictionary<NSViewFullScreenModeOptionKey, id> *options = PMVisualizationFullScreenOptions();
 
@@ -254,6 +295,20 @@
     XCTAssertEqual(result.count, 1U);
     XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
     XCTAssertEqualObjects(result[0][@"path"], @"/tmp/foo.milk");
+}
+
+- (void)testFavoritesSortInPlaceOrdersByNameCaseInsensitive {
+    NSMutableArray *favorites = [@[
+        @{@"name": @"b.milk", @"path": @"b.milk"},
+        @{@"name": @"A.milk", @"path": @"A.milk"},
+        @{@"name": @"c.milk", @"path": @"c.milk"},
+    ] mutableCopy];
+
+    PMFavoritesSortInPlace(favorites);
+
+    XCTAssertEqualObjects(favorites[0][@"name"], @"A.milk");
+    XCTAssertEqualObjects(favorites[1][@"name"], @"b.milk");
+    XCTAssertEqualObjects(favorites[2][@"name"], @"c.milk");
 }
 
 - (void)testFavoritesSerializeReturnsEmptyStringForEmptyOrNilInput {

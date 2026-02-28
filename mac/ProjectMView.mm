@@ -80,8 +80,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _pendingPresetPath = nil;
         _hasPausedShuffleProgress = NO;
         _shuffleResumeToken = 0;
-        _presetOverlayLabel = nil;
-        _presetOverlayToken = 0;
         _helpWindow = nil;
         _activePresetsRootPath = nil;
     }
