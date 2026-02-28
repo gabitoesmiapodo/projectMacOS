@@ -206,6 +206,36 @@
     XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654320ULL));
 }
 
+- (void)testManualPresetSelectionDoesNotShowOverlay {
+    XCTAssertFalse(PMShouldShowOverlayForManualPresetSelection());
+}
+
+- (void)testPresetMenuTooltipShowsRelativePathWhenPossible {
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/a/Presets/foo.milk", @"/a/Presets"), @"foo.milk");
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/a/Presets/Sub/bar.milk", @"/a/Presets"), @"Sub/bar.milk");
+}
+
+- (void)testPresetMenuTooltipFallsBackToAbsolutePathOutsideRoot {
+    XCTAssertEqualObjects(PMPresetMenuItemToolTipForPresetPath(@"/x/y/foo.milk", @"/a/Presets"), @"/x/y/foo.milk");
+}
+
+- (void)testContextMenuPlacesPreviousBeforeNext {
+    NSString *testPath = @(__FILE__);
+    NSString *macDir = [[testPath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
+    NSString *menuPath = [macDir stringByAppendingPathComponent:@"ProjectMView+Menu.mm"];
+
+    NSError *error = nil;
+    NSString *content = [NSString stringWithContentsOfFile:menuPath encoding:NSUTF8StringEncoding error:&error];
+    XCTAssertNotNil(content);
+    XCTAssertNil(error);
+
+    NSRange prevRange = [content rangeOfString:@"addItemWithTitle:@\"Previous\""];
+    NSRange nextRange = [content rangeOfString:@"addItemWithTitle:@\"Next\""];
+    XCTAssertNotEqual(prevRange.location, NSNotFound);
+    XCTAssertNotEqual(nextRange.location, NSNotFound);
+    XCTAssertLessThan(prevRange.location, nextRange.location);
+}
+
 - (void)testVisualizationFullscreenOptionsLimitFullscreenToSingleScreen {
     NSDictionary<NSViewFullScreenModeOptionKey, id> *options = PMVisualizationFullScreenOptions();
 
@@ -254,6 +284,20 @@
     XCTAssertEqual(result.count, 1U);
     XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
     XCTAssertEqualObjects(result[0][@"path"], @"/tmp/foo.milk");
+}
+
+- (void)testFavoritesSortInPlaceOrdersByNameCaseInsensitive {
+    NSMutableArray *favorites = [@[
+        @{@"name": @"b.milk", @"path": @"b.milk"},
+        @{@"name": @"A.milk", @"path": @"A.milk"},
+        @{@"name": @"c.milk", @"path": @"c.milk"},
+    ] mutableCopy];
+
+    PMFavoritesSortInPlace(favorites);
+
+    XCTAssertEqualObjects(favorites[0][@"name"], @"A.milk");
+    XCTAssertEqualObjects(favorites[1][@"name"], @"b.milk");
+    XCTAssertEqualObjects(favorites[2][@"name"], @"c.milk");
 }
 
 - (void)testFavoritesSerializeReturnsEmptyStringForEmptyOrNilInput {
