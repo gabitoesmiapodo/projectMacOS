@@ -47,7 +47,7 @@
 
     if (foundIndex) {
         projectm_playlist_set_position(_playlist, selectedIndex, PMUseHardCutTransitions());
-        [self refreshCurrentPresetName:selectedIndex showOverlay:PMShouldShowOverlayForManualPresetSelection()];
+        [self refreshCurrentPresetName:selectedIndex];
         return;
     }
 
@@ -63,7 +63,7 @@
         if (dynamicIndex > 0) {
             dynamicIndex -= 1;
             projectm_playlist_set_position(_playlist, dynamicIndex, PMUseHardCutTransitions());
-            [self refreshCurrentPresetName:dynamicIndex showOverlay:PMShouldShowOverlayForManualPresetSelection()];
+            [self refreshCurrentPresetName:dynamicIndex];
         }
     } else {
         [self loadDefaultPresetFallback];
@@ -72,82 +72,6 @@
 
 - (void)applyMenuTitleLimitToItem:(NSMenuItem *)item fullTitle:(NSString *)fullTitle {
     PMApplyMenuTitleLimit(item, fullTitle);
-}
-
-- (void)showPresetOverlayName:(NSString *)presetName {
-    if (!presetName || presetName.length == 0) return;
-
-    if (self->_isVisualizationPaused) return;
-
-    [self showOverlayText:presetName persistent:NO];
-}
-
-- (void)showOverlayText:(NSString *)text persistent:(BOOL)persistent {
-    if (!text || text.length == 0) return;
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (!self->_presetOverlayLabel) {
-            self->_presetOverlayLabel = [[NSTextField alloc] initWithFrame:NSZeroRect];
-            self->_presetOverlayLabel.editable = NO;
-            self->_presetOverlayLabel.bordered = NO;
-            self->_presetOverlayLabel.drawsBackground = YES;
-            self->_presetOverlayLabel.backgroundColor = [NSColor colorWithWhite:0.0 alpha:0.45];
-            self->_presetOverlayLabel.textColor = [NSColor whiteColor];
-            self->_presetOverlayLabel.alignment = NSTextAlignmentCenter;
-            self->_presetOverlayLabel.font = [NSFont boldSystemFontOfSize:22.0];
-            self->_presetOverlayLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
-            self->_presetOverlayLabel.maximumNumberOfLines = 1;
-            self->_presetOverlayLabel.hidden = YES;
-            self->_presetOverlayLabel.alphaValue = 0.0;
-            self->_presetOverlayLabel.translatesAutoresizingMaskIntoConstraints = NO;
-            self->_presetOverlayLabel.wantsLayer = YES;
-            self->_presetOverlayLabel.layer.cornerRadius = 8.0;
-            self->_presetOverlayLabel.layer.masksToBounds = YES;
-            [self addSubview:self->_presetOverlayLabel];
-
-            [NSLayoutConstraint activateConstraints:@[
-                [self->_presetOverlayLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-                [self->_presetOverlayLabel.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-                [self->_presetOverlayLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:16.0],
-                [self->_presetOverlayLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-16.0]
-            ]];
-        }
-
-        self->_presetOverlayToken++;
-        NSUInteger token = self->_presetOverlayToken;
-
-        self->_presetOverlayLabel.stringValue = [NSString stringWithFormat:@"  %@  ", text];
-        self->_presetOverlayLabel.hidden = NO;
-        self->_presetOverlayLabel.alphaValue = 1.0;
-
-        if (persistent) {
-            return;
-        }
-
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (token != self->_presetOverlayToken) return;
-            [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-                context.duration = 0.2;
-                self->_presetOverlayLabel.animator.alphaValue = 0.0;
-            } completionHandler:^{
-                if (token != self->_presetOverlayToken) return;
-                self->_presetOverlayLabel.hidden = YES;
-            }];
-        });
-    });
-}
-
-- (void)hideOverlayText {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self->_presetOverlayToken++;
-
-        if (!self->_presetOverlayLabel) {
-            return;
-        }
-
-        self->_presetOverlayLabel.alphaValue = 0.0;
-        self->_presetOverlayLabel.hidden = YES;
-    });
 }
 
 - (void)populatePresetMenu:(NSMenu *)menu atPath:(NSString *)directoryPath {
@@ -289,11 +213,6 @@
                                          keyEquivalent:@""];
     currentPreset.enabled = NO;
     [self applyMenuTitleLimitToItem:currentPreset fullTitle:[self currentPresetDisplayName]];
-    NSString *currentPresetPath = [_currentPresetPath isKindOfClass:[NSString class]] ? _currentPresetPath : nil;
-    NSString *currentTip = PMPresetMenuItemToolTipForPresetPath(currentPresetPath, [self presetsDirectoryPath]);
-    if (currentTip.length > 0) {
-        currentPreset.toolTip = currentTip;
-    }
 
     [menu addItem:[NSMenuItem separatorItem]];
 
@@ -316,9 +235,9 @@
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaused)
-                                        action:@selector(togglePausePlayback:)
-                                 keyEquivalent:@""];
+NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaused)
+                                         action:@selector(togglePausePlayback:)
+                                  keyEquivalent:@""];
     pause.target = self;
     [self applySystemSymbol:PMPauseMenuSymbolName(_isVisualizationPaused) toMenuItem:pause];
 
@@ -506,11 +425,8 @@
     }
 
     if (_isVisualizationPaused) {
-        [self showOverlayText:PMPausedOverlayText() persistent:YES];
         return;
     }
-
-    [self hideOverlayText];
 }
 
 - (void)showHelp:(id)sender {
@@ -691,19 +607,19 @@
 - (void)nextPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-    [self enqueuePresetRequest:PMPresetRequestTypeNext presetPath:nil];
+        [self enqueuePresetRequest:PMPresetRequestTypeNext presetPath:nil];
 }
 
 - (void)previousPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-    [self enqueuePresetRequest:PMPresetRequestTypePrevious presetPath:nil];
+        [self enqueuePresetRequest:PMPresetRequestTypePrevious presetPath:nil];
 }
 
 - (void)randomPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-    [self enqueuePresetRequest:PMPresetRequestTypeRandom presetPath:nil];
+        [self enqueuePresetRequest:PMPresetRequestTypeRandom presetPath:nil];
 }
 
 - (void)processPendingPresetRequestInRenderLoop {
