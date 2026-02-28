@@ -83,10 +83,11 @@
     XCTAssertEqualObjects(PMHelpBackgroundColorHex(YES), @"#000000");
 }
 
-- (void)testShouldLockPresetWhenPausedOrShuffleDisabled {
-    XCTAssertTrue(PMShouldLockPreset(NO, NO));
-    XCTAssertFalse(PMShouldLockPreset(YES, NO));
-    XCTAssertTrue(PMShouldLockPreset(YES, YES));
+- (void)testShouldLockPresetWhenPausedShuffleDisabledOrPlaybackInactive {
+    XCTAssertTrue(PMShouldLockPreset(NO, NO, YES));
+    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES));
+    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO));
+    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES));
 }
 
 - (void)testRemainingShuffleDurationUsesConfiguredElapsedAndMinimumFloor {
@@ -94,11 +95,56 @@
     XCTAssertEqualWithAccuracy(PMRemainingShuffleDurationSeconds(20.0, 25.0), 0.05, 0.0001);
 }
 
+- (void)testPresetDurationOptionsExposeSupportedValuesOnly {
+    NSArray<NSNumber *> *expected = @[@15, @30, @45, @60];
+    XCTAssertEqualObjects(PMPresetDurationOptions(), expected);
+}
+
+- (void)testValidatedPresetDurationFallsBackToDefaultForUnknownValues {
+    XCTAssertEqual(PMValidatedPresetDuration(15), 15);
+    XCTAssertEqual(PMValidatedPresetDuration(30), 30);
+    XCTAssertEqual(PMValidatedPresetDuration(45), 45);
+    XCTAssertEqual(PMValidatedPresetDuration(60), 60);
+
+    XCTAssertEqual(PMValidatedPresetDuration(0), 30);
+    XCTAssertEqual(PMValidatedPresetDuration(-1), 30);
+    XCTAssertEqual(PMValidatedPresetDuration(999), 30);
+}
+
 - (void)testShouldScheduleShuffleResumeOnlyWhenResumingWithProgress {
-    XCTAssertTrue(PMShouldScheduleShuffleResume(NO, YES, YES));
+    XCTAssertFalse(PMShouldScheduleShuffleResume(NO, YES, YES));
     XCTAssertFalse(PMShouldScheduleShuffleResume(YES, YES, YES));
     XCTAssertFalse(PMShouldScheduleShuffleResume(NO, NO, YES));
     XCTAssertFalse(PMShouldScheduleShuffleResume(NO, YES, NO));
+}
+
+- (void)testShuffleToggleDoesNotAdvancePresetImmediately {
+    XCTAssertFalse(PMShouldAdvancePresetOnShuffleToggle(NO, NO, NO));
+    XCTAssertFalse(PMShouldAdvancePresetOnShuffleToggle(YES, NO, YES));
+}
+
+- (void)testShuffleTimerResetsOnlyWhenEnablingShuffle {
+    XCTAssertTrue(PMShouldResetShuffleTimerOnToggle(NO, YES));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnToggle(YES, NO));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnToggle(NO, NO));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnToggle(YES, YES));
+}
+
+- (void)testShuffleTimerResetsWhenPlaybackResumesWithShuffleEnabled {
+    XCTAssertTrue(PMShouldResetShuffleTimerOnPlaybackTransition(NO, YES, YES));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnPlaybackTransition(YES, YES, YES));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnPlaybackTransition(NO, YES, NO));
+    XCTAssertFalse(PMShouldResetShuffleTimerOnPlaybackTransition(YES, NO, YES));
+}
+
+- (void)testPresetTransitionsUseSoftCut {
+    XCTAssertFalse(PMUseHardCutTransitions());
+}
+
+- (void)testPresetRequestCoalescingUsesLatestAction {
+    XCTAssertEqual(PMPresetRequestAfterEnqueue(PMPresetRequestTypeNone, PMPresetRequestTypeNext), PMPresetRequestTypeNext);
+    XCTAssertEqual(PMPresetRequestAfterEnqueue(PMPresetRequestTypePrevious, PMPresetRequestTypeRandom), PMPresetRequestTypeRandom);
+    XCTAssertEqual(PMPresetRequestAfterEnqueue(PMPresetRequestTypeSelectPath, PMPresetRequestTypeNone), PMPresetRequestTypeSelectPath);
 }
 
 - (void)testMilkPresetContentValidationAcceptsPresetHeader {
@@ -158,6 +204,19 @@
     XCTAssertTrue(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654321ULL));
     XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.6, 987654321ULL));
     XCTAssertFalse(PMZipCacheFingerprintMatches(1234.5, 987654321ULL, 1234.5, 987654320ULL));
+}
+
+- (void)testVisualizationFullscreenOptionsLimitFullscreenToSingleScreen {
+    NSDictionary<NSViewFullScreenModeOptionKey, id> *options = PMVisualizationFullScreenOptions();
+
+    NSNumber *allScreensValue = options[NSFullScreenModeAllScreens];
+    NSNumber *presentationValue = options[NSFullScreenModeApplicationPresentationOptions];
+
+    XCTAssertNotNil(allScreensValue);
+    XCTAssertEqualObjects(allScreensValue, @NO);
+    XCTAssertNotNil(presentationValue);
+    NSUInteger expectedPresentation = NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar;
+    XCTAssertEqual(presentationValue.unsignedIntegerValue, expectedPresentation);
 }
 
 @end

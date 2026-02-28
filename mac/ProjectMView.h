@@ -4,10 +4,14 @@
 #import <CoreVideo/CVDisplayLink.h>
 #import <projectM-4/projectM.h>
 #import <projectM-4/playlist.h>
+#import "ProjectMMenuLogic.h"
 
 extern cfg_bool cfg_preset_shuffle;
 extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
+
+bool PMIsMusicPlaybackActive(void);
+void PMSyncMusicPlaybackState(void);
 
 extern const void *kPresetMenuPathKey;
 
@@ -19,10 +23,16 @@ extern const void *kPresetMenuPathKey;
     visualisation_stream_v2::ptr _visStream;
     double _lastTime;
     double _lastPresetSwitchTimestamp;
+    double _shuffleEnableDeadline;
     double _remainingShuffleDurationOnPause;
     BOOL _projectMInitialized;
     BOOL _didLogGLInfo;
     BOOL _isVisualizationPaused;
+    BOOL _isAudioPlaybackActive;
+    BOOL _pendingShuffleEnable;
+    BOOL _playlistShuffleEnabled;
+    PMPresetRequestType _pendingPresetRequest;
+    NSString *_pendingPresetPath;
     BOOL _hasPausedShuffleProgress;
     NSUInteger _shuffleResumeToken;
     NSTextField *_presetOverlayLabel;
@@ -99,6 +109,8 @@ extern const void *kPresetMenuPathKey;
 - (void)showHelp:(id)sender;
 /// Build the right-click context menu.
 - (NSMenu *)buildContextMenu;
+/// Consume queued preset action from render thread.
+- (void)processPendingPresetRequestInRenderLoop;
 /// Close help window safely during teardown.
 - (void)cleanupHelpWindow;
 @end
