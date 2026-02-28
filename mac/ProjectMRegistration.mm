@@ -1,6 +1,8 @@
 #import "stdafx.h"
 #import "ProjectMView.h"
 
+#import <atomic>
+
 // Stub for pfc::myassert -- only called when PFC_DEBUG=1 but prebuilt SDK libs are Release
 namespace pfc { void myassert(const char*, const char*, unsigned int) {} }
 
@@ -18,9 +20,76 @@ static const GUID guid_cfg_preset_duration = { 0x48d9b7f5, 0x4446, 0x4ab7, { 0xb
 
 cfg_bool cfg_preset_shuffle(guid_cfg_preset_shuffle, false);
 cfg_string cfg_preset_name(guid_cfg_preset_name, "");
-cfg_int cfg_preset_duration(guid_cfg_preset_duration, 20);
+cfg_int cfg_preset_duration(guid_cfg_preset_duration, 30);
 
 const void *kPresetMenuPathKey = &kPresetMenuPathKey;
+
+namespace {
+
+std::atomic<bool> g_musicPlaybackActive(false);
+
+class playback_state_callback : public play_callback_static {
+public:
+    unsigned get_flags() override {
+        return flag_on_playback_starting | flag_on_playback_stop | flag_on_playback_pause;
+    }
+
+    void on_playback_starting(play_control::t_track_command p_command, bool p_paused) override {
+        (void)p_command;
+        g_musicPlaybackActive.store(!p_paused, std::memory_order_relaxed);
+    }
+
+    void on_playback_new_track(metadb_handle_ptr p_track) override {
+        (void)p_track;
+    }
+
+    void on_playback_stop(play_control::t_stop_reason p_reason) override {
+        (void)p_reason;
+        g_musicPlaybackActive.store(false, std::memory_order_relaxed);
+    }
+
+    void on_playback_seek(double p_time) override {
+        (void)p_time;
+    }
+
+    void on_playback_pause(bool p_state) override {
+        g_musicPlaybackActive.store(!p_state, std::memory_order_relaxed);
+    }
+
+    void on_playback_edited(metadb_handle_ptr p_track) override {
+        (void)p_track;
+    }
+
+    void on_playback_dynamic_info(const file_info &p_info) override {
+        (void)p_info;
+    }
+
+    void on_playback_dynamic_info_track(const file_info &p_info) override {
+        (void)p_info;
+    }
+
+    void on_playback_time(double p_time) override {
+        (void)p_time;
+    }
+
+    void on_volume_change(float p_new_val) override {
+        (void)p_new_val;
+    }
+};
+
+play_callback_static_factory_t<playback_state_callback> g_playback_state_callback_factory;
+
+} // anonymous namespace
+
+bool PMIsMusicPlaybackActive(void) {
+    return g_musicPlaybackActive.load(std::memory_order_relaxed);
+}
+
+void PMSyncMusicPlaybackState(void) {
+    static_api_ptr_t<play_control> playbackControl;
+    bool isActive = playbackControl->is_playing() && !playbackControl->is_paused();
+    g_musicPlaybackActive.store(isActive, std::memory_order_relaxed);
+}
 
 // MARK: - View Controller
 

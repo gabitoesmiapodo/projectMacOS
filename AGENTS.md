@@ -28,7 +28,7 @@ bash scripts/deploy-component.sh
 bash scripts/run-tests.sh
 ```
 
-The deploy script quits if foobar2000 is running, runs `scripts/run-tests.sh`, copies the component to `~/Library/foobar2000-v2/user-components/foo_vis_projectMacOS/`, verifies binary UUIDs, and launches foobar2000.
+The deploy script closes foobar2000 if it is running, runs `scripts/run-tests.sh`, copies the component to `~/Library/foobar2000-v2/user-components/foo_vis_projectMacOS/`, verifies binary UUIDs, and launches foobar2000.
 
 Always run `bash scripts/deploy-component.sh` after implementing new features, bug fixes, or other behavior changes.
 

@@ -77,8 +77,57 @@ NSString *PMHelpBackgroundColorHex(BOOL darkMode) {
     return darkMode ? @"#000000" : @"#ffffff";
 }
 
-BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused) {
-    return isPaused || !shuffleEnabled;
+NSDictionary<NSViewFullScreenModeOptionKey, id> *PMVisualizationFullScreenOptions(void) {
+    return @{
+        NSFullScreenModeAllScreens: @NO,
+        NSFullScreenModeApplicationPresentationOptions: @(NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar)
+    };
+}
+
+BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback) {
+    return isPaused || !shuffleEnabled || !hasActivePlayback;
+}
+
+NSArray<NSNumber *> *PMPresetDurationOptions(void) {
+    static NSArray<NSNumber *> *options;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        options = @[@15, @30, @45, @60];
+    });
+    return options;
+}
+
+int PMValidatedPresetDuration(int requestedDuration) {
+    for (NSNumber *option in PMPresetDurationOptions()) {
+        if (option.intValue == requestedDuration) {
+            return requestedDuration;
+        }
+    }
+    return 30;
+}
+
+BOOL PMShouldAdvancePresetOnShuffleToggle(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback) {
+    (void)shuffleEnabled;
+    (void)isPaused;
+    (void)hasActivePlayback;
+    return NO;
+}
+
+BOOL PMShouldResetShuffleTimerOnToggle(BOOL wasShuffleEnabled, BOOL shuffleEnabled) {
+    return !wasShuffleEnabled && shuffleEnabled;
+}
+
+BOOL PMShouldResetShuffleTimerOnPlaybackTransition(BOOL wasPlaybackActive, BOOL playbackActive, BOOL shuffleEnabled) {
+    return !wasPlaybackActive && playbackActive && shuffleEnabled;
+}
+
+BOOL PMUseHardCutTransitions(void) {
+    return NO;
+}
+
+PMPresetRequestType PMPresetRequestAfterEnqueue(PMPresetRequestType current,
+                                                PMPresetRequestType incoming) {
+    return incoming == PMPresetRequestTypeNone ? current : incoming;
 }
 
 double PMRemainingShuffleDurationSeconds(double configuredDuration, double elapsedDuration) {
@@ -87,7 +136,10 @@ double PMRemainingShuffleDurationSeconds(double configuredDuration, double elaps
 }
 
 BOOL PMShouldScheduleShuffleResume(BOOL isPaused, BOOL shuffleEnabled, BOOL hasPausedProgress) {
-    return !isPaused && shuffleEnabled && hasPausedProgress;
+    (void)isPaused;
+    (void)shuffleEnabled;
+    (void)hasPausedProgress;
+    return NO;
 }
 
 BOOL PMIsLikelyMilkPresetContent(NSString *content) {

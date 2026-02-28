@@ -2,6 +2,14 @@
 
 #import <Cocoa/Cocoa.h>
 
+typedef NS_ENUM(NSInteger, PMPresetRequestType) {
+    PMPresetRequestTypeNone = 0,
+    PMPresetRequestTypeNext,
+    PMPresetRequestTypePrevious,
+    PMPresetRequestTypeRandom,
+    PMPresetRequestTypeSelectPath,
+};
+
 /// Truncate long menu titles and report whether truncation occurred.
 FOUNDATION_EXPORT NSString *PMTruncatedMenuTitle(NSString *title, BOOL *wasTruncated);
 /// Convert persisted preset filename/path into a user-facing display name.
@@ -18,8 +26,25 @@ FOUNDATION_EXPORT NSString *PMPausedOverlayText(void);
 FOUNDATION_EXPORT NSString *PMHelpTextColorHex(BOOL darkMode);
 /// Return help text background color for light/dark theme.
 FOUNDATION_EXPORT NSString *PMHelpBackgroundColorHex(BOOL darkMode);
+/// Build fullscreen options that keep fullscreen on one display.
+FOUNDATION_EXPORT NSDictionary<NSViewFullScreenModeOptionKey, id> *PMVisualizationFullScreenOptions(void);
 /// Return whether projectM preset lock should be enabled.
-FOUNDATION_EXPORT BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused);
+FOUNDATION_EXPORT BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback);
+/// Supported preset duration options in seconds.
+FOUNDATION_EXPORT NSArray<NSNumber *> *PMPresetDurationOptions(void);
+/// Validate configured duration and return a supported value.
+FOUNDATION_EXPORT int PMValidatedPresetDuration(int requestedDuration);
+/// Return whether shuffle toggle should advance to another preset immediately.
+FOUNDATION_EXPORT BOOL PMShouldAdvancePresetOnShuffleToggle(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback);
+/// Return whether shuffle timer should reset after toggle.
+FOUNDATION_EXPORT BOOL PMShouldResetShuffleTimerOnToggle(BOOL wasShuffleEnabled, BOOL shuffleEnabled);
+/// Return whether shuffle timer should reset when playback resumes.
+FOUNDATION_EXPORT BOOL PMShouldResetShuffleTimerOnPlaybackTransition(BOOL wasPlaybackActive, BOOL playbackActive, BOOL shuffleEnabled);
+/// Return whether preset changes should use projectM hard cuts.
+FOUNDATION_EXPORT BOOL PMUseHardCutTransitions(void);
+/// Coalesce preset requests; latest non-none request wins.
+FOUNDATION_EXPORT PMPresetRequestType PMPresetRequestAfterEnqueue(PMPresetRequestType current,
+                                                                  PMPresetRequestType incoming);
 /// Compute remaining shuffle time in seconds with a minimum floor.
 FOUNDATION_EXPORT double PMRemainingShuffleDurationSeconds(double configuredDuration, double elapsedDuration);
 /// Return whether resume should defer the next shuffled preset switch.
