@@ -253,8 +253,31 @@ NSString *PMFavoriteDisplayName(NSDictionary *entry) {
     return display.length > 0 ? display : @"(unknown)";
 }
 
+NSString *PMFavoriteStoredPathForFullPath(NSString *fullPath, NSString *presetsDir) {
+    if (fullPath.length == 0) return @"";
+    if (presetsDir.length == 0) return fullPath;
+
+    NSString *normalizedFull = [fullPath stringByStandardizingPath];
+    NSString *normalizedDir = [presetsDir stringByStandardizingPath];
+    if (normalizedDir.length == 0) return normalizedFull;
+
+    NSString *dirPrefix = [normalizedDir hasSuffix:@"/"] ? normalizedDir : [normalizedDir stringByAppendingString:@"/"];
+    if ([normalizedFull hasPrefix:dirPrefix]) {
+        NSString *rel = [normalizedFull substringFromIndex:dirPrefix.length];
+        if (rel.length > 0 && ![rel hasPrefix:@"/"]) {
+            return rel;
+        }
+    }
+
+    return normalizedFull;
+}
+
 BOOL PMFavoriteImportEntryIsValid(id candidate) {
     if (![candidate isKindOfClass:[NSDictionary class]]) return NO;
     id name = ((NSDictionary *)candidate)[@"name"];
-    return [name isKindOfClass:[NSString class]] && [(NSString *)name length] > 0;
+    if (![name isKindOfClass:[NSString class]] || [(NSString *)name length] == 0) return NO;
+
+    id path = ((NSDictionary *)candidate)[@"path"];
+    if (path == nil) return YES;
+    return [path isKindOfClass:[NSString class]] && [(NSString *)path length] > 0;
 }

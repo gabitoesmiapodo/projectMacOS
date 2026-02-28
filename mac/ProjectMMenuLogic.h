@@ -88,5 +88,12 @@ FOUNDATION_EXPORT NSInteger PMFavoritesIndexOfName(NSArray<NSDictionary *> *favo
 /// Returns @"(unknown)" if "name" is missing or empty.
 FOUNDATION_EXPORT NSString *PMFavoriteDisplayName(NSDictionary *entry);
 
-/// Return YES if candidate is a valid import entry: must be NSDictionary with a non-empty "name" NSString.
+/// Compute stored favorite path.
+/// If fullPath is inside presetsDir, returns a relative path (no leading slash).
+/// Otherwise returns fullPath unchanged.
+FOUNDATION_EXPORT NSString *PMFavoriteStoredPathForFullPath(NSString *fullPath, NSString *presetsDir);
+
+/// Return YES if candidate is a valid import entry:
+/// - must be NSDictionary with a non-empty "name" NSString
+/// - if "path" is present, it must be a non-empty NSString
 FOUNDATION_EXPORT BOOL PMFavoriteImportEntryIsValid(id candidate);

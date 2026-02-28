@@ -642,14 +642,20 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
     NSString *fullName = @(filename);
     NSString *baseName = [fullName lastPathComponent];
+    NSString *overlayName = [baseName stringByDeletingPathExtension];
+
     cfg_preset_name = [baseName UTF8String];
-    _currentPresetPath = fullName;
-
-    if (showOverlay) {
-        [self showPresetOverlayName:[baseName stringByDeletingPathExtension]];
-    }
-
     projectm_playlist_free_string(filename);
+
+    __weak ProjectMView *weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        ProjectMView *strongSelf = weakSelf;
+        if (!strongSelf) return;
+        strongSelf->_currentPresetPath = fullName;
+        if (showOverlay) {
+            [strongSelf showPresetOverlayName:overlayName];
+        }
+    });
 }
 
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message {

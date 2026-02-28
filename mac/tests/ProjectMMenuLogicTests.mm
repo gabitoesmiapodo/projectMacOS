@@ -235,7 +235,7 @@
 }
 
 - (void)testFavoritesDeserializeDropsInvalidEntries {
-    NSString *json = @"[{\"name\":\"foo.milk\"},{\"path\":\"/only-path\"},\"notadict\",{}]";
+    NSString *json = @"[{\"name\":\"foo.milk\"},{\"path\":\"/only-path\"},{\"name\":\"bad.milk\",\"path\":123},\"notadict\",{}]";
     NSMutableArray *result = PMFavoritesDeserialize(json);
     XCTAssertEqual(result.count, 1U);
     XCTAssertEqualObjects(result[0][@"name"], @"foo.milk");
@@ -306,6 +306,17 @@
     XCTAssertFalse(PMFavoriteImportEntryIsValid(@{}));
     XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @""}));
     XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"path": @"/tmp/foo.milk"}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk", @"path": @42}));
+    XCTAssertFalse(PMFavoriteImportEntryIsValid(@{@"name": @"foo.milk", @"path": @""}));
+}
+
+- (void)testFavoriteStoredPathForFullPathReturnsRelativeWithinPresetsDir {
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets/foo.milk", @"/a/Presets"), @"foo.milk");
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets/Sub/bar.milk", @"/a/Presets"), @"Sub/bar.milk");
+}
+
+- (void)testFavoriteStoredPathForFullPathDoesNotMatchPrefixWithoutBoundary {
+    XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets2/foo.milk", @"/a/Presets"), @"/a/Presets2/foo.milk");
 }
 
 @end
