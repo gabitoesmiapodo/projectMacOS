@@ -590,12 +590,12 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             }
 
             if (presetIndex >= 0) {
-                projectm_playlist_set_position(_playlist, presetIndex, true);
+                projectm_playlist_set_position(_playlist, presetIndex, PMUseHardCutTransitions());
                 [self refreshCurrentPresetName:(uint32_t)presetIndex showOverlay:YES];
             } else if (totalPresets > 0) {
                 std::srand((unsigned)std::time(0));
                 uint32_t randomIndex = (uint32_t)(std::rand() % totalPresets);
-                projectm_playlist_set_position(_playlist, randomIndex, true);
+                projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
                 [self refreshCurrentPresetName:randomIndex showOverlay:YES];
             } else {
                 FB2K_console_print("projectM: source found but contains no presets, using default preset.");
@@ -695,7 +695,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         }
 
         uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
-        projectm_playlist_set_position(_playlist, randomIndex, true);
+        projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
         [self refreshCurrentPresetName:randomIndex showOverlay:YES];
     }
     @catch (NSException *exception) {

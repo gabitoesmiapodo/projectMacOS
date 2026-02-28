@@ -1,5 +1,6 @@
 #import "stdafx.h"
 #import "ProjectMView.h"
+#import "ProjectMMenuLogic.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -67,10 +68,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _displayLink = NULL;
         _lastTime = 0.0;
         _lastPresetSwitchTimestamp = 0.0;
+        _shuffleEnableDeadline = 0.0;
         _remainingShuffleDurationOnPause = (double)cfg_preset_duration;
         _projectMInitialized = NO;
         _didLogGLInfo = NO;
         _isVisualizationPaused = NO;
+        _isAudioPlaybackActive = NO;
+        _pendingShuffleEnable = NO;
+        _playlistShuffleEnabled = NO;
+        _pendingPresetRequest = PMPresetRequestTypeNone;
+        _pendingPresetPath = nil;
         _hasPausedShuffleProgress = NO;
         _shuffleResumeToken = 0;
         _presetOverlayLabel = nil;
@@ -178,6 +185,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         projectm_free_string(runtimeVersion);
     }
 
+    cfg_preset_duration = PMValidatedPresetDuration((int)cfg_preset_duration);
+
     _projectM = projectm_create();
     if (!_projectM) {
         FB2K_console_print("projectM: projectm_create() failed. Verify OpenGL context is current and compatible.");
@@ -190,7 +199,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     projectm_set_fps(_projectM, 60);
     projectm_set_soft_cut_duration(_projectM, 3.0);
     projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
-    projectm_set_hard_cut_enabled(_projectM, true);
+    projectm_set_hard_cut_enabled(_projectM, PMUseHardCutTransitions());
     projectm_set_hard_cut_duration(_projectM, 20.0);
     projectm_set_hard_cut_sensitivity(_projectM, 1.0f);
     projectm_set_beat_sensitivity(_projectM, 1.0f);
@@ -204,15 +213,25 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
 
     _lastPresetSwitchTimestamp = 0.0;
+    _shuffleEnableDeadline = 0.0;
     _remainingShuffleDurationOnPause = (double)cfg_preset_duration;
     _hasPausedShuffleProgress = NO;
+    PMSyncMusicPlaybackState();
+    _isAudioPlaybackActive = PMIsMusicPlaybackActive();
+    _pendingShuffleEnable = cfg_preset_shuffle && _isAudioPlaybackActive;
+    if (_pendingShuffleEnable) {
+        _shuffleEnableDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+    }
     _shuffleResumeToken = 0;
+    _playlistShuffleEnabled = NO;
+    _pendingPresetRequest = PMPresetRequestTypeNone;
+    _pendingPresetPath = nil;
 
-    projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
+    projectm_playlist_set_shuffle(_playlist, false);
 
     [self loadPresetsFromCurrentSource];
 
-    projectm_set_preset_locked(_projectM, !cfg_preset_shuffle);
+    projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
 
     _projectMInitialized = YES;
 }
@@ -247,6 +266,34 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         [self addPCM];
 
+        double now = CFAbsoluteTimeGetCurrent();
+        BOOL canShuffle = cfg_preset_shuffle && !_isVisualizationPaused && _isAudioPlaybackActive;
+        if (!canShuffle) {
+            _pendingShuffleEnable = NO;
+            _shuffleEnableDeadline = 0.0;
+        }
+
+        BOOL shouldShuffleNow = NO;
+        if (canShuffle) {
+            if (_pendingShuffleEnable) {
+                if (now >= _shuffleEnableDeadline) {
+                    _pendingShuffleEnable = NO;
+                    shouldShuffleNow = YES;
+                }
+            } else {
+                shouldShuffleNow = YES;
+            }
+        }
+
+        if (_playlist && _playlistShuffleEnabled != shouldShuffleNow) {
+            projectm_playlist_set_shuffle(_playlist, shouldShuffleNow);
+            _playlistShuffleEnabled = shouldShuffleNow;
+        }
+
+        [self processPendingPresetRequestInRenderLoop];
+
+        projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
+
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -272,9 +319,23 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         return;
 
     @try {
+        BOOL wasPlaybackActive = _isAudioPlaybackActive;
+        _isAudioPlaybackActive = PMIsMusicPlaybackActive();
+
+        if (wasPlaybackActive != _isAudioPlaybackActive) {
+            if (PMShouldResetShuffleTimerOnPlaybackTransition(wasPlaybackActive, _isAudioPlaybackActive, cfg_preset_shuffle)) {
+                _pendingShuffleEnable = YES;
+                _shuffleEnableDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+            } else if (!_isAudioPlaybackActive) {
+                _pendingShuffleEnable = NO;
+                _shuffleEnableDeadline = 0.0;
+            }
+        }
+
         double time;
-        if (!_visStream->get_absolute_time(time))
+        if (!_visStream->get_absolute_time(time)) {
             return;
+        }
 
         double dt = time - _lastTime;
         _lastTime = time;

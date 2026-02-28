@@ -20,8 +20,34 @@ LEGACY_DEST_DIR1="$USER_COMPONENTS_DIR/projectMacOS"
 LEGACY_DEST_DIR2="$USER_COMPONENTS_DIR/foo_vis_projectM"
 
 if pgrep -x "foobar2000" >/dev/null 2>&1; then
-    echo "foobar2000 is running. I'll close it and rerun this script."
-    exit 1
+    echo "foobar2000 is running. Closing it before deploy..."
+    osascript -e 'tell application "foobar2000" to quit' >/dev/null 2>&1 || true
+
+    for _ in {1..100}; do
+        if ! pgrep -x "foobar2000" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    if pgrep -x "foobar2000" >/dev/null 2>&1; then
+        echo "foobar2000 did not quit gracefully. Forcing termination..."
+        pkill -x "foobar2000" >/dev/null 2>&1 || true
+
+        for _ in {1..50}; do
+            if ! pgrep -x "foobar2000" >/dev/null 2>&1; then
+                break
+            fi
+            sleep 0.1
+        done
+    fi
+
+    if pgrep -x "foobar2000" >/dev/null 2>&1; then
+        echo "Failed to stop foobar2000. Aborting deploy."
+        exit 1
+    fi
+
+    echo "foobar2000 closed. Continuing deploy."
 fi
 
 if [ "${1:-}" = "--build" ]; then

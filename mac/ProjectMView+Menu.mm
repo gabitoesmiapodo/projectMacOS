@@ -10,6 +10,67 @@
 
 @implementation ProjectMView (Menu)
 
+- (void)enqueuePresetRequest:(PMPresetRequestType)request presetPath:(NSString *)presetPath {
+    @synchronized (self) {
+        _pendingPresetRequest = PMPresetRequestAfterEnqueue(_pendingPresetRequest, request);
+        if (_pendingPresetRequest == PMPresetRequestTypeSelectPath) {
+            _pendingPresetPath = [presetPath copy];
+        } else {
+            _pendingPresetPath = nil;
+        }
+    }
+}
+
+- (void)applyPresetSelectionPathInRenderLoop:(NSString *)presetPath {
+    if (!_projectM || !_playlist) return;
+    if (!presetPath || presetPath.length == 0) return;
+
+    NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+    uint32_t totalPresets = projectm_playlist_size(_playlist);
+    uint32_t selectedIndex = 0;
+    BOOL foundIndex = NO;
+
+    if (totalPresets > 0) {
+        char **items = projectm_playlist_items(_playlist, 0, totalPresets);
+        for (uint32_t i = 0; items && items[i]; ++i) {
+            NSString *candidatePath = @(items[i]);
+            NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+            if ([normalizedCandidate isEqualToString:targetPath] ||
+                [normalizedCandidate hasSuffix:targetPath] ||
+                [targetPath hasSuffix:normalizedCandidate]) {
+                selectedIndex = i;
+                foundIndex = YES;
+                break;
+            }
+        }
+        if (items) projectm_playlist_free_string_array(items);
+    }
+
+    if (foundIndex) {
+        projectm_playlist_set_position(_playlist, selectedIndex, PMUseHardCutTransitions());
+        [self refreshCurrentPresetName:selectedIndex showOverlay:YES];
+        return;
+    }
+
+    bool inserted = false;
+    try {
+        inserted = projectm_playlist_add_preset(_playlist, [targetPath UTF8String], true);
+    } catch (...) {
+        inserted = false;
+    }
+
+    if (inserted) {
+        uint32_t dynamicIndex = projectm_playlist_size(_playlist);
+        if (dynamicIndex > 0) {
+            dynamicIndex -= 1;
+            projectm_playlist_set_position(_playlist, dynamicIndex, PMUseHardCutTransitions());
+            [self refreshCurrentPresetName:dynamicIndex showOverlay:YES];
+        }
+    } else {
+        [self loadDefaultPresetFallback];
+    }
+}
+
 - (void)applyMenuTitleLimitToItem:(NSMenuItem *)item fullTitle:(NSString *)fullTitle {
     PMApplyMenuTitleLimit(item, fullTitle);
 }
@@ -170,88 +231,11 @@
 - (void)selectPresetFromMenuItem:(id)sender {
     if (!_projectM || !_playlist) return;
 
-    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
-    if (!cglContext) return;
+    NSMenuItem *item = (NSMenuItem *)sender;
+    NSString *presetPath = [item.representedObject isKindOfClass:[NSString class]] ? (NSString *)item.representedObject : nil;
+    if (!presetPath || presetPath.length == 0) return;
 
-    BOOL contextLocked = NO;
-    try {
-        @try {
-            NSMenuItem *item = (NSMenuItem *)sender;
-            NSString *presetPath = [item.representedObject isKindOfClass:[NSString class]] ? (NSString *)item.representedObject : nil;
-            if (!presetPath || presetPath.length == 0) return;
-
-            NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
-
-            CGLLockContext(cglContext);
-            contextLocked = YES;
-            [[self openGLContext] makeCurrentContext];
-
-            uint32_t totalPresets = projectm_playlist_size(_playlist);
-            uint32_t selectedIndex = 0;
-            BOOL foundIndex = NO;
-
-            if (totalPresets > 0) {
-                char **items = projectm_playlist_items(_playlist, 0, totalPresets);
-                for (uint32_t i = 0; items && items[i]; ++i) {
-                    NSString *candidatePath = @(items[i]);
-                    NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
-                    if ([normalizedCandidate isEqualToString:targetPath] ||
-                        [normalizedCandidate hasSuffix:targetPath] ||
-                        [targetPath hasSuffix:normalizedCandidate]) {
-                        selectedIndex = i;
-                        foundIndex = YES;
-                        break;
-                    }
-                }
-                if (items) projectm_playlist_free_string_array(items);
-            }
-
-            if (foundIndex) {
-                projectm_playlist_set_position(_playlist, selectedIndex, true);
-                [self refreshCurrentPresetName:selectedIndex showOverlay:YES];
-            } else {
-                bool inserted = false;
-                try {
-                    inserted = projectm_playlist_add_preset(_playlist, [targetPath UTF8String], true);
-                } catch (...) {
-                    inserted = false;
-                }
-
-                if (inserted) {
-                    uint32_t dynamicIndex = projectm_playlist_size(_playlist);
-                    if (dynamicIndex > 0) {
-                        dynamicIndex -= 1;
-                        projectm_playlist_set_position(_playlist, dynamicIndex, true);
-                        [self refreshCurrentPresetName:dynamicIndex showOverlay:YES];
-                    }
-                } else {
-                    [self loadDefaultPresetFallback];
-                }
-            }
-
-            CGLUnlockContext(cglContext);
-            contextLocked = NO;
-        }
-        @catch (NSException *exception) {
-            FB2K_console_print("projectM: Objective-C exception in selectPresetFromMenuItem: ", [[exception description] UTF8String]);
-            if (contextLocked) {
-                CGLUnlockContext(cglContext);
-                contextLocked = NO;
-            }
-        }
-    } catch (const std::exception &e) {
-        FB2K_console_print("projectM: C++ exception in selectPresetFromMenuItem: ", e.what());
-        if (contextLocked) {
-            CGLUnlockContext(cglContext);
-            contextLocked = NO;
-        }
-    } catch (...) {
-        FB2K_console_print("projectM: unknown C++ exception in selectPresetFromMenuItem");
-        if (contextLocked) {
-            CGLUnlockContext(cglContext);
-            contextLocked = NO;
-        }
-    }
+    [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:presetPath];
 }
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
@@ -358,15 +342,16 @@
     shuffle.toolTip = @"When enabled, presets will change randomly after a set amount of time.";
 
     NSMenu *durationMenu = [[NSMenu alloc] initWithTitle:@"Delay"];
-    int durations[] = {5, 10, 20, 30, 45, 60};
-    for (int d : durations) {
-        NSString *title = [NSString stringWithFormat:@"%ds", d];
+    int selectedDuration = PMValidatedPresetDuration((int)cfg_preset_duration);
+    for (NSNumber *option in PMPresetDurationOptions()) {
+        int d = option.intValue;
+        NSString *title = (d == 60) ? @"1m" : [NSString stringWithFormat:@"%ds", d];
         NSMenuItem *item = [durationMenu addItemWithTitle:title
                                                    action:@selector(setDuration:)
                                             keyEquivalent:@""];
         item.target = self;
         item.tag = d;
-        if (d == cfg_preset_duration)
+        if (d == selectedDuration)
             item.state = NSControlStateValueOn;
     }
     NSMenuItem *durationItem = [menu addItemWithTitle:@"Delay"
@@ -405,63 +390,10 @@
             contextLocked = YES;
         }
 
-        BOOL pauseRequested = !_isVisualizationPaused;
-        if (pauseRequested) {
-            _shuffleResumeToken++;
-            _hasPausedShuffleProgress = NO;
-            if (cfg_preset_shuffle && _lastPresetSwitchTimestamp > 0.0) {
-                double elapsedDuration = CFAbsoluteTimeGetCurrent() - _lastPresetSwitchTimestamp;
-                _remainingShuffleDurationOnPause = PMRemainingShuffleDurationSeconds((double)cfg_preset_duration, elapsedDuration);
-                _hasPausedShuffleProgress = YES;
-            }
-        }
-
         _isVisualizationPaused = !_isVisualizationPaused;
 
         if (_projectM) {
-            if (PMShouldScheduleShuffleResume(_isVisualizationPaused, cfg_preset_shuffle, _hasPausedShuffleProgress)) {
-                _shuffleResumeToken++;
-                NSUInteger resumeToken = _shuffleResumeToken;
-                double resumeDelaySeconds = _remainingShuffleDurationOnPause;
-                _hasPausedShuffleProgress = NO;
-
-                projectm_set_preset_locked(_projectM, YES);
-
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(resumeDelaySeconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    if (resumeToken != self->_shuffleResumeToken) return;
-                    if (self->_isVisualizationPaused) return;
-                    if (!cfg_preset_shuffle || !self->_projectM || !self->_playlist) return;
-
-                    CGLContextObj resumeContext = [[self openGLContext] CGLContextObj];
-                    BOOL resumeContextLocked = NO;
-                    @try {
-                        if (resumeContext) {
-                            CGLLockContext(resumeContext);
-                            resumeContextLocked = YES;
-                            [[self openGLContext] makeCurrentContext];
-                        }
-
-                        if (projectm_playlist_size(self->_playlist) > 0) {
-                            projectm_playlist_play_next(self->_playlist, true);
-                        }
-
-                        projectm_set_preset_locked(self->_projectM, PMShouldLockPreset(cfg_preset_shuffle, self->_isVisualizationPaused));
-
-                        if (resumeContextLocked) {
-                            CGLUnlockContext(resumeContext);
-                            resumeContextLocked = NO;
-                        }
-                    }
-                    @catch (NSException *exception) {
-                        FB2K_console_print("projectM: Objective-C exception while scheduling shuffle resume: ", [[exception description] UTF8String]);
-                        if (resumeContextLocked) {
-                            CGLUnlockContext(resumeContext);
-                        }
-                    }
-                });
-            } else {
-                projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused));
-            }
+            projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive));
         }
 
         if (contextLocked) {
@@ -641,16 +573,93 @@
     NSScreen *screen = self.window.screen ?: [NSScreen mainScreen];
     if (!screen) return;
 
-    NSDictionary *options = @{
-        NSFullScreenModeApplicationPresentationOptions: @(NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar)
-    };
-    [self enterFullScreenMode:screen withOptions:options];
+    [self enterFullScreenMode:screen withOptions:PMVisualizationFullScreenOptions()];
     [self.window makeFirstResponder:self];
 }
 
 - (void)toggleShuffle:(id)sender {
+    BOOL wasShuffleEnabled = cfg_preset_shuffle;
     cfg_preset_shuffle = !cfg_preset_shuffle;
-    _shuffleResumeToken++;
+    BOOL shouldResetShuffleTimer = PMShouldResetShuffleTimerOnToggle(wasShuffleEnabled, cfg_preset_shuffle);
+
+    if (shouldResetShuffleTimer && _isAudioPlaybackActive) {
+        _pendingShuffleEnable = YES;
+        _shuffleEnableDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+    } else if (!cfg_preset_shuffle) {
+        _pendingShuffleEnable = NO;
+        _shuffleEnableDeadline = 0.0;
+    }
+
+}
+
+- (void)nextPreset:(id)sender {
+    (void)sender;
+    if (!_projectM || !_playlist) return;
+    [self enqueuePresetRequest:PMPresetRequestTypeNext presetPath:nil];
+}
+
+- (void)previousPreset:(id)sender {
+    (void)sender;
+    if (!_projectM || !_playlist) return;
+    [self enqueuePresetRequest:PMPresetRequestTypePrevious presetPath:nil];
+}
+
+- (void)randomPreset:(id)sender {
+    (void)sender;
+    if (!_projectM || !_playlist) return;
+    [self enqueuePresetRequest:PMPresetRequestTypeRandom presetPath:nil];
+}
+
+- (void)processPendingPresetRequestInRenderLoop {
+    PMPresetRequestType request = PMPresetRequestTypeNone;
+    NSString *presetPath = nil;
+
+    @synchronized (self) {
+        request = _pendingPresetRequest;
+        if (request == PMPresetRequestTypeSelectPath) {
+            presetPath = [_pendingPresetPath copy];
+        }
+        _pendingPresetRequest = PMPresetRequestTypeNone;
+        _pendingPresetPath = nil;
+    }
+
+    if (request == PMPresetRequestTypeNone || !_projectM || !_playlist) return;
+    if (projectm_playlist_size(_playlist) == 0) return;
+
+    @try {
+        switch (request) {
+            case PMPresetRequestTypeNext:
+                projectm_playlist_play_next(_playlist, PMUseHardCutTransitions());
+                break;
+            case PMPresetRequestTypePrevious:
+                projectm_playlist_play_previous(_playlist, PMUseHardCutTransitions());
+                break;
+            case PMPresetRequestTypeRandom: {
+                bool restoreShuffle = _playlistShuffleEnabled;
+                projectm_playlist_set_shuffle(_playlist, true);
+                projectm_playlist_play_next(_playlist, PMUseHardCutTransitions());
+                projectm_playlist_set_shuffle(_playlist, restoreShuffle);
+                break;
+            }
+            case PMPresetRequestTypeSelectPath:
+                [self applyPresetSelectionPathInRenderLoop:presetPath];
+                break;
+            case PMPresetRequestTypeNone:
+                break;
+        }
+    }
+    @catch (NSException *exception) {
+        FB2K_console_print("projectM: Objective-C exception while processing preset request: ", [[exception description] UTF8String]);
+    }
+}
+
+- (void)setDuration:(id)sender {
+    NSMenuItem *item = (NSMenuItem *)sender;
+    cfg_preset_duration = PMValidatedPresetDuration((int)item.tag);
+    if (_pendingShuffleEnable) {
+        _shuffleEnableDeadline = CFAbsoluteTimeGetCurrent() + (double)cfg_preset_duration;
+    }
+    if (!_projectM) return;
 
     CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
     if (cglContext) {
@@ -658,73 +667,11 @@
         [[self openGLContext] makeCurrentContext];
     }
 
-    if (_projectM) {
-        if (!cfg_preset_shuffle) {
-            _hasPausedShuffleProgress = NO;
-        } else if (_isVisualizationPaused && !_hasPausedShuffleProgress) {
-            _remainingShuffleDurationOnPause = (double)cfg_preset_duration;
-            _hasPausedShuffleProgress = YES;
-        }
+    projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
 
-        projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused));
-    }
-
-    if (_playlist)
-        projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
-
-    if (cfg_preset_shuffle && !_isVisualizationPaused && _playlist && projectm_playlist_size(_playlist) > 0)
-        projectm_playlist_play_next(_playlist, true);
-
-    if (cglContext)
+    if (cglContext) {
         CGLUnlockContext(cglContext);
-}
-
-- (void)nextPreset:(id)sender {
-    if (!_projectM || !_playlist) return;
-    if (projectm_playlist_size(_playlist) == 0) return;
-
-    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
-    if (!cglContext) return;
-
-    CGLLockContext(cglContext);
-    [[self openGLContext] makeCurrentContext];
-    projectm_playlist_play_next(_playlist, true);
-    CGLUnlockContext(cglContext);
-}
-
-- (void)previousPreset:(id)sender {
-    if (!_projectM || !_playlist) return;
-    if (projectm_playlist_size(_playlist) == 0) return;
-
-    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
-    if (!cglContext) return;
-
-    CGLLockContext(cglContext);
-    [[self openGLContext] makeCurrentContext];
-    projectm_playlist_play_previous(_playlist, true);
-    CGLUnlockContext(cglContext);
-}
-
-- (void)randomPreset:(id)sender {
-    if (!_projectM || !_playlist) return;
-    if (projectm_playlist_size(_playlist) == 0) return;
-
-    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
-    if (!cglContext) return;
-
-    CGLLockContext(cglContext);
-    [[self openGLContext] makeCurrentContext];
-    projectm_playlist_set_shuffle(_playlist, true);
-    projectm_playlist_play_next(_playlist, true);
-    projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
-    CGLUnlockContext(cglContext);
-}
-
-- (void)setDuration:(id)sender {
-    NSMenuItem *item = (NSMenuItem *)sender;
-    cfg_preset_duration = (int)item.tag;
-    if (_projectM)
-        projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
+    }
 }
 
 @end
