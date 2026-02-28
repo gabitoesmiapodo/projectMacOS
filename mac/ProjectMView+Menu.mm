@@ -47,7 +47,7 @@
 
     if (foundIndex) {
         projectm_playlist_set_position(_playlist, selectedIndex, PMUseHardCutTransitions());
-        [self refreshCurrentPresetName:selectedIndex showOverlay:YES];
+        [self refreshCurrentPresetName:selectedIndex showOverlay:PMShouldShowOverlayForManualPresetSelection()];
         return;
     }
 
@@ -63,7 +63,7 @@
         if (dynamicIndex > 0) {
             dynamicIndex -= 1;
             projectm_playlist_set_position(_playlist, dynamicIndex, PMUseHardCutTransitions());
-            [self refreshCurrentPresetName:dynamicIndex showOverlay:YES];
+            [self refreshCurrentPresetName:dynamicIndex showOverlay:PMShouldShowOverlayForManualPresetSelection()];
         }
     } else {
         [self loadDefaultPresetFallback];
@@ -216,6 +216,7 @@
         presetItem.target = self;
         presetItem.representedObject = presetPath;
         [self applyMenuTitleLimitToItem:presetItem fullTitle:displayName];
+        presetItem.toolTip = PMPresetMenuItemToolTipForPresetPath(presetPath, [self presetsDirectoryPath]);
         if (currentPresetFilename && [[presetFilename lowercaseString] isEqualToString:currentPresetFilename]) {
             presetItem.state = NSControlStateValueOn;
         }
@@ -288,6 +289,11 @@
                                          keyEquivalent:@""];
     currentPreset.enabled = NO;
     [self applyMenuTitleLimitToItem:currentPreset fullTitle:[self currentPresetDisplayName]];
+    NSString *currentPresetPath = [_currentPresetPath isKindOfClass:[NSString class]] ? _currentPresetPath : nil;
+    NSString *currentTip = PMPresetMenuItemToolTipForPresetPath(currentPresetPath, [self presetsDirectoryPath]);
+    if (currentTip.length > 0) {
+        currentPreset.toolTip = currentTip;
+    }
 
     [menu addItem:[NSMenuItem separatorItem]];
 
@@ -316,17 +322,17 @@
     pause.target = self;
     [self applySystemSymbol:PMPauseMenuSymbolName(_isVisualizationPaused) toMenuItem:pause];
 
-    NSMenuItem *next = [menu addItemWithTitle:@"Next"
-                                       action:@selector(nextPreset:)
-                                keyEquivalent:@""];
-    next.target = self;
-    [self applySystemSymbol:@"forward.fill" toMenuItem:next];
-
     NSMenuItem *prev = [menu addItemWithTitle:@"Previous"
                                        action:@selector(previousPreset:)
                                 keyEquivalent:@""];
     prev.target = self;
     [self applySystemSymbol:@"backward.fill" toMenuItem:prev];
+
+    NSMenuItem *next = [menu addItemWithTitle:@"Next"
+                                       action:@selector(nextPreset:)
+                                keyEquivalent:@""];
+    next.target = self;
+    [self applySystemSymbol:@"forward.fill" toMenuItem:next];
 
     NSMenuItem *random = [menu addItemWithTitle:@"Random Pick"
                                           action:@selector(randomPreset:)
@@ -773,6 +779,7 @@
 }
 
 - (void)persistFavorites {
+    PMFavoritesSortInPlace(self.loadedFavorites);
     NSString *json = PMFavoritesSerialize(self.loadedFavorites);
     cfg_preset_favorites = json ? [json UTF8String] : "";
 }
