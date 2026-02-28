@@ -9,6 +9,7 @@
 extern cfg_bool cfg_preset_shuffle;
 extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
+extern cfg_string cfg_preset_favorites;
 
 bool PMIsMusicPlaybackActive(void);
 void PMSyncMusicPlaybackState(void);
@@ -40,6 +41,7 @@ extern const void *kPresetMenuPathKey;
     NSWindow *_helpWindow;
     NSTextView *_helpTextView;
     NSString *_activePresetsRootPath;
+    NSMutableArray *_favorites;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
