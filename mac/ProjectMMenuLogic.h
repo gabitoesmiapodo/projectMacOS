@@ -69,6 +69,14 @@ FOUNDATION_EXPORT BOOL PMZipCacheFingerprintMatches(NSTimeInterval cachedMTime,
                                                     NSTimeInterval currentMTime,
                                                     uint64_t currentSizeBytes);
 
+/// Return whether selecting a preset from the menu should show the overlay preset name.
+FOUNDATION_EXPORT BOOL PMShouldShowOverlayForManualPresetSelection(void);
+
+/// Tooltip string for a preset menu item.
+/// Returns a relative path (including filename) when presetPath is under presetsRootDir.
+/// Otherwise returns a standardized absolute path.
+FOUNDATION_EXPORT NSString *PMPresetMenuItemToolTipForPresetPath(NSString *presetPath, NSString *presetsRootDir);
+
 /// Deserialize a JSON string into a mutable array of favorite entry dicts.
 /// Returns an empty mutable array for nil, empty, or invalid input.
 /// Silently drops any entries that fail PMFavoriteImportEntryIsValid.
@@ -77,6 +85,10 @@ FOUNDATION_EXPORT NSMutableArray<NSDictionary *> *PMFavoritesDeserialize(NSStrin
 /// Serialize favorites array to a pretty-printed JSON string.
 /// Returns @"" for nil or empty input.
 FOUNDATION_EXPORT NSString *PMFavoritesSerialize(NSArray<NSDictionary *> *favorites);
+
+/// Sort favorites in-place by the "name" key (case-insensitive, localized).
+/// No-op for nil or fewer than 2 entries.
+FOUNDATION_EXPORT void PMFavoritesSortInPlace(NSMutableArray<NSDictionary *> *favorites);
 
 /// Return YES if any entry in favorites has a "name" value equal to name.
 FOUNDATION_EXPORT BOOL PMFavoritesContainsName(NSArray<NSDictionary *> *favorites, NSString *name);
