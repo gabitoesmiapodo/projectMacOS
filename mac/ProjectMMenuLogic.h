@@ -68,3 +68,25 @@ FOUNDATION_EXPORT BOOL PMZipCacheFingerprintMatches(NSTimeInterval cachedMTime,
                                                     uint64_t cachedSizeBytes,
                                                     NSTimeInterval currentMTime,
                                                     uint64_t currentSizeBytes);
+
+/// Deserialize a JSON string into a mutable array of favorite entry dicts.
+/// Returns an empty mutable array for nil, empty, or invalid input.
+/// Silently drops any entries that fail PMFavoriteImportEntryIsValid.
+FOUNDATION_EXPORT NSMutableArray<NSDictionary *> *PMFavoritesDeserialize(NSString *json);
+
+/// Serialize favorites array to a pretty-printed JSON string.
+/// Returns @"" for nil or empty input.
+FOUNDATION_EXPORT NSString *PMFavoritesSerialize(NSArray<NSDictionary *> *favorites);
+
+/// Return YES if any entry in favorites has a "name" value equal to name.
+FOUNDATION_EXPORT BOOL PMFavoritesContainsName(NSArray<NSDictionary *> *favorites, NSString *name);
+
+/// Return the index of the first entry with "name" == name, or -1 if not found.
+FOUNDATION_EXPORT NSInteger PMFavoritesIndexOfName(NSArray<NSDictionary *> *favorites, NSString *name);
+
+/// Return user-facing display name for a favorite entry: lastPathComponent of "name", minus .milk extension.
+/// Returns @"(unknown)" if "name" is missing or empty.
+FOUNDATION_EXPORT NSString *PMFavoriteDisplayName(NSDictionary *entry);
+
+/// Return YES if candidate is a valid import entry: must be NSDictionary with a non-empty "name" NSString.
+FOUNDATION_EXPORT BOOL PMFavoriteImportEntryIsValid(id candidate);
