@@ -519,7 +519,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     try {
         projectm_load_preset_data(_projectM, kBuiltInFallbackPreset, false);
         cfg_preset_name = "projectMacOS.milk";
-        [self showPresetOverlayName:@"projectMacOS"];
         FB2K_console_print("projectM: built-in fallback preset loaded.");
     } catch (...) {
         cfg_preset_name = "";
@@ -591,12 +590,12 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
             if (presetIndex >= 0) {
                 projectm_playlist_set_position(_playlist, presetIndex, PMUseHardCutTransitions());
-                [self refreshCurrentPresetName:(uint32_t)presetIndex showOverlay:YES];
+                [self refreshCurrentPresetName:(uint32_t)presetIndex];
             } else if (totalPresets > 0) {
                 std::srand((unsigned)std::time(0));
                 uint32_t randomIndex = (uint32_t)(std::rand() % totalPresets);
                 projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
-                [self refreshCurrentPresetName:randomIndex showOverlay:YES];
+                [self refreshCurrentPresetName:randomIndex];
             } else {
                 FB2K_console_print("projectM: source found but contains no presets, using default preset.");
                 [self loadDefaultPresetFallback];
@@ -633,7 +632,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     return PMCurrentPresetDisplayName(savedPresetName);
 }
 
-- (void)refreshCurrentPresetName:(uint32_t)index showOverlay:(BOOL)showOverlay {
+- (void)refreshCurrentPresetName:(uint32_t)index {
     if (!_playlist) return;
     char *filename = projectm_playlist_item(_playlist, index);
     if (!filename) return;
@@ -642,7 +641,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
     NSString *fullName = @(filename);
     NSString *baseName = [fullName lastPathComponent];
-    NSString *overlayName = [baseName stringByDeletingPathExtension];
 
     cfg_preset_name = [baseName UTF8String];
     projectm_playlist_free_string(filename);
@@ -652,9 +650,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         ProjectMView *strongSelf = weakSelf;
         if (!strongSelf) return;
         strongSelf->_currentPresetPath = fullName;
-        if (showOverlay) {
-            [strongSelf showPresetOverlayName:overlayName];
-        }
     });
 }
 
@@ -703,7 +698,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
         uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
         projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
-        [self refreshCurrentPresetName:randomIndex showOverlay:YES];
+        [self refreshCurrentPresetName:randomIndex];
     }
     @catch (NSException *exception) {
         FB2K_console_print("projectM: Objective-C exception while handling preset load failure: ", [[exception description] UTF8String]);
@@ -725,7 +720,7 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     ProjectMView *view = (__bridge ProjectMView *)user_data;
     if (!view || !view->_playlist)
         return;
-    [view refreshCurrentPresetName:(uint32_t)index showOverlay:!cfg_preset_shuffle];
+    [view refreshCurrentPresetName:(uint32_t)index];
 }
 
 static void callbackPresetSwitchFailed(const char *preset_filename, const char *message, void *user_data) {

@@ -208,6 +208,15 @@ BOOL PMZipCacheFingerprintMatches(NSTimeInterval cachedMTime,
     return cachedMTime == currentMTime && cachedSizeBytes == currentSizeBytes;
 }
 
+BOOL PMShouldShowOverlayForManualPresetSelection(void) {
+    return NO;
+}
+
+NSString *PMPresetMenuItemToolTipForPresetPath(NSString *presetPath, NSString *presetsRootDir) {
+    if (presetPath.length == 0) return @"";
+    return PMFavoriteStoredPathForFullPath(presetPath, presetsRootDir);
+}
+
 NSMutableArray<NSDictionary *> *PMFavoritesDeserialize(NSString *json) {
     if (json.length == 0) return [NSMutableArray array];
     NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
@@ -228,10 +237,19 @@ NSString *PMFavoritesSerialize(NSArray<NSDictionary *> *favorites) {
     if (favorites.count == 0) return @"";
     NSError *error = nil;
     NSData *data = [NSJSONSerialization dataWithJSONObject:favorites
-                                                  options:NSJSONWritingPrettyPrinted
-                                                    error:&error];
+                                                   options:NSJSONWritingPrettyPrinted
+                                                     error:&error];
     if (!data) return @"";
     return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+}
+
+void PMFavoritesSortInPlace(NSMutableArray<NSDictionary *> *favorites) {
+    if (favorites.count < 2) return;
+    [favorites sortUsingComparator:^NSComparisonResult(NSDictionary *lhs, NSDictionary *rhs) {
+        NSString *lhsName = [lhs[@"name"] isKindOfClass:[NSString class]] ? lhs[@"name"] : @"";
+        NSString *rhsName = [rhs[@"name"] isKindOfClass:[NSString class]] ? rhs[@"name"] : @"";
+        return [lhsName localizedCaseInsensitiveCompare:rhsName];
+    }];
 }
 
 BOOL PMFavoritesContainsName(NSArray<NSDictionary *> *favorites, NSString *name) {
