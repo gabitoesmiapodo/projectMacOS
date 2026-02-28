@@ -74,7 +74,7 @@ FOUNDATION_EXPORT BOOL PMShouldShowOverlayForManualPresetSelection(void);
 
 /// Tooltip string for a preset menu item.
 /// Returns a relative path (including filename) when presetPath is under presetsRootDir.
-/// Otherwise returns a standardized absolute path.
+/// Otherwise returns an absolute path (or presetPath unchanged if presetsRootDir is nil or empty).
 FOUNDATION_EXPORT NSString *PMPresetMenuItemToolTipForPresetPath(NSString *presetPath, NSString *presetsRootDir);
 
 /// Deserialize a JSON string into a mutable array of favorite entry dicts.
