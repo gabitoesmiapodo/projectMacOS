@@ -365,7 +365,6 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSMenuItem *cycleFavoritesItem = [menu addItemWithTitle:@"Cycle Favorites"
                                                      action:nil
                                               keyEquivalent:@""];
-    cycleFavoritesItem.state = (currentCycleMode != PMCycleFavoritesModeOff) ? NSControlStateValueOn : NSControlStateValueOff;
     if (cycleFavsDisabled) {
         cycleFavoritesItem.enabled = NO;
         cycleFavoritesItem.toolTip = @"No favorites added yet";
@@ -373,31 +372,35 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 
     NSMenu *cycleMenu = [[NSMenu alloc] initWithTitle:@"Cycle Favorites"];
 
-    // Subitem always has a tick: active mode, or Ascending by default when Off
-    PMCycleFavoritesMode effectiveSubMode = (currentCycleMode != PMCycleFavoritesModeOff)
-        ? currentCycleMode
-        : PMCycleFavoritesModeAscending;
+    NSMenuItem *disabledItem = [cycleMenu addItemWithTitle:@"Disabled"
+                                                    action:@selector(setCycleFavoritesMode:)
+                                             keyEquivalent:@""];
+    disabledItem.target = self;
+    disabledItem.tag = PMCycleFavoritesModeOff;
+    disabledItem.state = (currentCycleMode == PMCycleFavoritesModeOff) ? NSControlStateValueOn : NSControlStateValueOff;
+
+    [cycleMenu addItem:[NSMenuItem separatorItem]];
 
     NSMenuItem *ascItem = [cycleMenu addItemWithTitle:@"Ascending"
                                                action:@selector(setCycleFavoritesMode:)
                                         keyEquivalent:@""];
     ascItem.target = self;
     ascItem.tag = PMCycleFavoritesModeAscending;
-    ascItem.state = (effectiveSubMode == PMCycleFavoritesModeAscending) ? NSControlStateValueOn : NSControlStateValueOff;
+    ascItem.state = (currentCycleMode == PMCycleFavoritesModeAscending) ? NSControlStateValueOn : NSControlStateValueOff;
 
     NSMenuItem *descItem = [cycleMenu addItemWithTitle:@"Descending"
                                                 action:@selector(setCycleFavoritesMode:)
                                          keyEquivalent:@""];
     descItem.target = self;
     descItem.tag = PMCycleFavoritesModeDescending;
-    descItem.state = (effectiveSubMode == PMCycleFavoritesModeDescending) ? NSControlStateValueOn : NSControlStateValueOff;
+    descItem.state = (currentCycleMode == PMCycleFavoritesModeDescending) ? NSControlStateValueOn : NSControlStateValueOff;
 
     NSMenuItem *randItem = [cycleMenu addItemWithTitle:@"Random"
                                                 action:@selector(setCycleFavoritesMode:)
                                          keyEquivalent:@""];
     randItem.target = self;
     randItem.tag = PMCycleFavoritesModeRandom;
-    randItem.state = (effectiveSubMode == PMCycleFavoritesModeRandom) ? NSControlStateValueOn : NSControlStateValueOff;
+    randItem.state = (currentCycleMode == PMCycleFavoritesModeRandom) ? NSControlStateValueOn : NSControlStateValueOff;
 
     cycleFavoritesItem.submenu = cycleMenu;
 
@@ -891,7 +894,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     PMCycleFavoritesMode tappedMode = (PMCycleFavoritesMode)item.tag;
     PMCycleFavoritesMode currentMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
 
-    if (tappedMode == currentMode) {
+    if (tappedMode == PMCycleFavoritesModeOff || tappedMode == currentMode) {
         cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
         _cycleFavoritesActive = NO;
         _cycleFavoritesDeadline = 0.0;
