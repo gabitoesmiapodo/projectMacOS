@@ -937,7 +937,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
             _cycleFavoritesIndex = (NSInteger)(paths.count - 1);
             [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[paths.count - 1]];
         } else {
-            // Random: position NSNotFound so first tick uses index 0
+            // Random: build a random order, start at position 0, and immediately select the first randomized favorite
             _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
             _cycleFavoritesRandomPosition = 0;
             _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[0] integerValue];
