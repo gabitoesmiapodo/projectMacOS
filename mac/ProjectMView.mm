@@ -82,6 +82,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _shuffleResumeToken = 0;
         _helpWindow = nil;
         _activePresetsRootPath = nil;
+        _cycleFavoritesIndex = 0;
+        _cycleFavoritesRandomOrder = nil;
+        _cycleFavoritesRandomPosition = 0;
+        _cycleFavoritesDeadline = 0.0;
+        _cycleFavoritesActive = NO;
+        _resolvedCyclePaths = nil;
     }
     return self;
 }
@@ -286,6 +292,39 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         if (_playlist && _playlistShuffleEnabled != shouldShuffleNow) {
             projectm_playlist_set_shuffle(_playlist, shouldShuffleNow);
             _playlistShuffleEnabled = shouldShuffleNow;
+        }
+
+        BOOL canCycleFavorites = (cfg_cycle_favorites_mode != PMCycleFavoritesModeOff)
+                                 && !_isVisualizationPaused
+                                 && _isAudioPlaybackActive;
+
+        if (canCycleFavorites && _cycleFavoritesActive && now >= _cycleFavoritesDeadline) {
+            NSArray<NSString *> *paths = _resolvedCyclePaths;
+            if (paths.count > 0) {
+                PMCycleFavoritesMode mode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
+                if (mode == PMCycleFavoritesModeRandom) {
+                    _cycleFavoritesRandomPosition++;
+                    if (_cycleFavoritesRandomPosition >= _cycleFavoritesRandomOrder.count) {
+                        _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+                        _cycleFavoritesRandomPosition = 0;
+                    }
+                    _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[_cycleFavoritesRandomPosition] integerValue];
+                } else {
+                    _cycleFavoritesIndex = PMNextCycleFavoritesIndex(_cycleFavoritesIndex, paths.count, mode);
+                }
+                NSString *path = paths[(NSUInteger)_cycleFavoritesIndex];
+                [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
+            }
+            _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+        }
+
+        if (!canCycleFavorites && _cycleFavoritesActive) {
+            _cycleFavoritesActive = NO;
+        }
+
+        if (canCycleFavorites && !_cycleFavoritesActive) {
+            _cycleFavoritesActive = YES;
+            _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
         }
 
         [self processPendingPresetRequestInRenderLoop];

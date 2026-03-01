@@ -10,6 +10,7 @@ extern cfg_bool cfg_preset_shuffle;
 extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
 extern cfg_string cfg_preset_favorites;
+extern cfg_int cfg_cycle_favorites_mode;
 
 bool PMIsMusicPlaybackActive(void);
 void PMSyncMusicPlaybackState(void);
@@ -41,6 +42,12 @@ extern const void *kPresetMenuPathKey;
     NSString *_activePresetsRootPath;
     NSMutableArray *_favorites;
     NSString *_currentPresetPath;
+    NSInteger _cycleFavoritesIndex;
+    NSMutableArray<NSNumber *> *_cycleFavoritesRandomOrder;
+    NSUInteger _cycleFavoritesRandomPosition;
+    double _cycleFavoritesDeadline;
+    BOOL _cycleFavoritesActive;
+    NSArray<NSString *> *_resolvedCyclePaths;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
@@ -88,6 +95,8 @@ extern const void *kPresetMenuPathKey;
 
 @interface ProjectMView (Menu)
 
+/// Enqueue a preset request for processing in the render loop.
+- (void)enqueuePresetRequest:(PMPresetRequestType)request presetPath:(NSString *)presetPath;
 /// Apply title truncation and tooltip behavior to a menu item.
 - (void)applyMenuTitleLimitToItem:(NSMenuItem *)item fullTitle:(NSString *)fullTitle;
 /// Populate a preset submenu from a filesystem directory.
@@ -128,4 +137,8 @@ extern const void *kPresetMenuPathKey;
 - (void)saveFavoritesList:(id)sender;
 /// Import favorites list via NSOpenPanel from a .json file (deduplicates, validates).
 - (void)loadFavoritesList:(id)sender;
+/// Set cycle favorites mode; toggles off if tapped mode matches current.
+- (void)setCycleFavoritesMode:(id)sender;
+/// Rebuild _resolvedCyclePaths from current loadedFavorites.
+- (void)rebuildResolvedCyclePaths;
 @end

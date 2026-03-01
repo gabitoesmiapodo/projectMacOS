@@ -299,3 +299,31 @@ BOOL PMFavoriteImportEntryIsValid(id candidate) {
     if (path == nil) return YES;
     return [path isKindOfClass:[NSString class]] && [(NSString *)path length] > 0;
 }
+
+NSInteger PMNextCycleFavoritesIndex(NSInteger currentIndex, NSUInteger count, PMCycleFavoritesMode mode) {
+    if (count == 0) return 0;
+    if (mode == PMCycleFavoritesModeDescending) {
+        if (currentIndex <= 0) return (NSInteger)(count - 1);
+        return currentIndex - 1;
+    }
+    // Ascending (default)
+    NSInteger next = currentIndex + 1;
+    if ((NSUInteger)next >= count) return 0;
+    return next;
+}
+
+NSArray<NSNumber *> *PMBuildRandomFavoritesOrder(NSUInteger count) {
+    NSMutableArray<NSNumber *> *order = [NSMutableArray arrayWithCapacity:count];
+    for (NSUInteger i = 0; i < count; i++) {
+        [order addObject:@(i)];
+    }
+    for (NSUInteger i = count; i > 1; i--) {
+        NSUInteger j = arc4random_uniform((uint32_t)i);
+        [order exchangeObjectAtIndex:i - 1 withObjectAtIndex:j];
+    }
+    return [order copy];
+}
+
+BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCount) {
+    return favoritesCount == 0;
+}

@@ -374,4 +374,46 @@
     XCTAssertEqualObjects(PMFavoriteStoredPathForFullPath(@"/a/Presets2/foo.milk", @"/a/Presets"), @"/a/Presets2/foo.milk");
 }
 
+// MARK: - Cycle Favorites helpers
+
+- (void)testNextCycleFavoritesIndexAscendingWraps {
+    XCTAssertEqual(PMNextCycleFavoritesIndex(0, 3, PMCycleFavoritesModeAscending), 1);
+    XCTAssertEqual(PMNextCycleFavoritesIndex(1, 3, PMCycleFavoritesModeAscending), 2);
+    XCTAssertEqual(PMNextCycleFavoritesIndex(2, 3, PMCycleFavoritesModeAscending), 0);
+}
+
+- (void)testNextCycleFavoritesIndexDescendingWraps {
+    XCTAssertEqual(PMNextCycleFavoritesIndex(2, 3, PMCycleFavoritesModeDescending), 1);
+    XCTAssertEqual(PMNextCycleFavoritesIndex(1, 3, PMCycleFavoritesModeDescending), 0);
+    XCTAssertEqual(PMNextCycleFavoritesIndex(0, 3, PMCycleFavoritesModeDescending), 2);
+}
+
+- (void)testBuildRandomFavoritesOrderContainsAllIndicesExactlyOnce {
+    NSUInteger count = 5;
+    NSArray<NSNumber *> *order = PMBuildRandomFavoritesOrder(count);
+    XCTAssertEqual(order.count, count);
+
+    NSMutableSet<NSNumber *> *seen = [NSMutableSet set];
+    for (NSNumber *n in order) {
+        XCTAssertFalse([seen containsObject:n], @"Duplicate index %@", n);
+        [seen addObject:n];
+    }
+    for (NSUInteger i = 0; i < count; i++) {
+        XCTAssertTrue([seen containsObject:@(i)], @"Missing index %lu", (unsigned long)i);
+    }
+}
+
+- (void)testBuildRandomFavoritesOrderHandlesEmptyAndSingleCount {
+    XCTAssertEqual(PMBuildRandomFavoritesOrder(0).count, 0U);
+    NSArray<NSNumber *> *single = PMBuildRandomFavoritesOrder(1);
+    XCTAssertEqual(single.count, 1U);
+    XCTAssertEqualObjects(single[0], @0);
+}
+
+- (void)testShouldDisableCycleFavoritesMenuReturnsTrueForZero {
+    XCTAssertTrue(PMShouldDisableCycleFavoritesMenu(0));
+    XCTAssertFalse(PMShouldDisableCycleFavoritesMenu(1));
+    XCTAssertFalse(PMShouldDisableCycleFavoritesMenu(10));
+}
+
 @end
