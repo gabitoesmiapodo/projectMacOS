@@ -416,4 +416,13 @@
     XCTAssertFalse(PMShouldDisableCycleFavoritesMenu(10));
 }
 
+- (void)testValidatedCycleFavoritesModeReturnsOffForUnrecognizedValues {
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(0),   PMCycleFavoritesModeOff);
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(1),   PMCycleFavoritesModeAscending);
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(2),   PMCycleFavoritesModeDescending);
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(3),   PMCycleFavoritesModeRandom);
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(-1),  PMCycleFavoritesModeOff);
+    XCTAssertEqual(PMValidatedCycleFavoritesMode(99),  PMCycleFavoritesModeOff);
+}
+
 @end

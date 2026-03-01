@@ -327,3 +327,12 @@ NSArray<NSNumber *> *PMBuildRandomFavoritesOrder(NSUInteger count) {
 BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCount) {
     return favoritesCount == 0;
 }
+
+PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue) {
+    switch (rawValue) {
+        case PMCycleFavoritesModeAscending:  return PMCycleFavoritesModeAscending;
+        case PMCycleFavoritesModeDescending: return PMCycleFavoritesModeDescending;
+        case PMCycleFavoritesModeRandom:     return PMCycleFavoritesModeRandom;
+        default:                             return PMCycleFavoritesModeOff;
+    }
+}

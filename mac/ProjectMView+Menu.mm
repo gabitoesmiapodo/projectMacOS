@@ -357,7 +357,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     shuffle.state = cfg_preset_shuffle ? NSControlStateValueOn : NSControlStateValueOff;
 
     // MARK: Cycle Favorites submenu
-    PMCycleFavoritesMode currentCycleMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
+    PMCycleFavoritesMode currentCycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
     NSUInteger favCount = self.loadedFavorites.count;
     BOOL cycleFavsDisabled = PMShouldDisableCycleFavoritesMenu(favCount);
 
@@ -652,9 +652,11 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     }
 
     if (cfg_preset_shuffle && cfg_cycle_favorites_mode != PMCycleFavoritesModeOff) {
-        cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
-        _cycleFavoritesActive = NO;
-        _cycleFavoritesDeadline = 0.0;
+        @synchronized (self) {
+            cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+            _cycleFavoritesActive = NO;
+            _cycleFavoritesDeadline = 0.0;
+        }
     }
 }
 
@@ -756,22 +758,24 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSString *json = PMFavoritesSerialize(self.loadedFavorites);
     cfg_preset_favorites = json ? [json UTF8String] : "";
 
-    PMCycleFavoritesMode cycleMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
+    PMCycleFavoritesMode cycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
     if (cycleMode != PMCycleFavoritesModeOff) {
         [self rebuildResolvedCyclePaths];
-        NSArray<NSString *> *paths = _resolvedCyclePaths;
-        if (paths.count == 0) {
-            cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
-            _cycleFavoritesActive = NO;
-            _cycleFavoritesDeadline = 0.0;
-        } else {
-            if (cycleMode == PMCycleFavoritesModeRandom) {
-                _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
-                _cycleFavoritesRandomPosition = 0;
-            } else if ((NSUInteger)_cycleFavoritesIndex >= paths.count) {
-                _cycleFavoritesIndex = (cycleMode == PMCycleFavoritesModeDescending)
-                    ? (NSInteger)(paths.count - 1)
-                    : 0;
+        @synchronized (self) {
+            NSArray<NSString *> *paths = _resolvedCyclePaths;
+            if (paths.count == 0) {
+                cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+                _cycleFavoritesActive = NO;
+                _cycleFavoritesDeadline = 0.0;
+            } else {
+                if (cycleMode == PMCycleFavoritesModeRandom) {
+                    _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+                    _cycleFavoritesRandomPosition = NSNotFound;
+                } else if ((NSUInteger)_cycleFavoritesIndex >= paths.count) {
+                    _cycleFavoritesIndex = (cycleMode == PMCycleFavoritesModeDescending)
+                        ? (NSInteger)(paths.count - 1)
+                        : 0;
+                }
             }
         }
     }
@@ -870,9 +874,11 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     cfg_preset_shuffle = false;
     _pendingShuffleEnable = NO;
     _shuffleEnableDeadline = 0.0;
-    cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
-    _cycleFavoritesActive = NO;
-    _cycleFavoritesDeadline = 0.0;
+    @synchronized (self) {
+        cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+        _cycleFavoritesActive = NO;
+        _cycleFavoritesDeadline = 0.0;
+    }
 }
 
 - (void)rebuildResolvedCyclePaths {
@@ -896,16 +902,16 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSMenuItem *item = (NSMenuItem *)sender;
     if (item.tag < PMCycleFavoritesModeOff || item.tag > PMCycleFavoritesModeRandom) return;
     PMCycleFavoritesMode tappedMode = (PMCycleFavoritesMode)item.tag;
-    PMCycleFavoritesMode currentMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
+    PMCycleFavoritesMode currentMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
 
     if (tappedMode == PMCycleFavoritesModeOff || tappedMode == currentMode) {
-        cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
-        _cycleFavoritesActive = NO;
-        _cycleFavoritesDeadline = 0.0;
+        @synchronized (self) {
+            cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+            _cycleFavoritesActive = NO;
+            _cycleFavoritesDeadline = 0.0;
+        }
         return;
     }
-
-    cfg_cycle_favorites_mode = (int)tappedMode;
 
     // Disable shuffle
     cfg_preset_shuffle = false;
@@ -913,29 +919,34 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     _shuffleEnableDeadline = 0.0;
 
     [self rebuildResolvedCyclePaths];
-    NSArray<NSString *> *paths = _resolvedCyclePaths;
-    if (paths.count == 0) {
-        cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
-        _cycleFavoritesActive = NO;
-        return;
-    }
 
-    if (tappedMode == PMCycleFavoritesModeAscending) {
-        _cycleFavoritesIndex = 0;
-        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[0]];
-    } else if (tappedMode == PMCycleFavoritesModeDescending) {
-        _cycleFavoritesIndex = (NSInteger)(paths.count - 1);
-        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[paths.count - 1]];
-    } else {
-        // Random
-        _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
-        _cycleFavoritesRandomPosition = 0;
-        _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[0] integerValue];
-        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[(NSUInteger)_cycleFavoritesIndex]];
-    }
+    @synchronized (self) {
+        NSArray<NSString *> *paths = _resolvedCyclePaths;
+        if (paths.count == 0) {
+            cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+            _cycleFavoritesActive = NO;
+            return;
+        }
 
-    _cycleFavoritesActive = YES;
-    _cycleFavoritesDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+        cfg_cycle_favorites_mode = (int)tappedMode;
+
+        if (tappedMode == PMCycleFavoritesModeAscending) {
+            _cycleFavoritesIndex = 0;
+            [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[0]];
+        } else if (tappedMode == PMCycleFavoritesModeDescending) {
+            _cycleFavoritesIndex = (NSInteger)(paths.count - 1);
+            [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[paths.count - 1]];
+        } else {
+            // Random: position NSNotFound so first tick uses index 0
+            _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+            _cycleFavoritesRandomPosition = 0;
+            _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[0] integerValue];
+            [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[(NSUInteger)_cycleFavoritesIndex]];
+        }
+
+        _cycleFavoritesActive = YES;
+        _cycleFavoritesDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+    }
 }
 
 - (void)loadFavoritesList:(id)sender {

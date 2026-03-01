@@ -125,3 +125,7 @@ FOUNDATION_EXPORT NSArray<NSNumber *> *PMBuildRandomFavoritesOrder(NSUInteger co
 
 /// Return YES if the Cycle Favorites menu should be disabled (no favorites available).
 FOUNDATION_EXPORT BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCount);
+
+/// Return a valid PMCycleFavoritesMode for the raw int stored in cfg_cycle_favorites_mode.
+/// Returns PMCycleFavoritesModeOff for any unrecognized value.
+FOUNDATION_EXPORT PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue);
