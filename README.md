@@ -32,10 +32,6 @@ You should see something like this:
 
 ![projectMacOS visualization example](images/screenshot.jpeg)
 
-### Option 2
-
-You can always manually add the `projectMacOS` component in your preferred location in the layout.
-
 ## Preset installation and use
 
 Follow these steps if you want to use the presets pack:
