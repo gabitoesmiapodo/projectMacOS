@@ -230,6 +230,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _playlistShuffleEnabled = NO;
     _pendingPresetRequest = PMPresetRequestTypeNone;
     _pendingPresetPath = nil;
+    _cycleFavoritesActive = NO;
+    _cycleFavoritesDeadline = 0.0;
+    _resolvedCyclePaths = nil;
+    _cycleFavoritesRandomOrder = nil;
+    _cycleFavoritesRandomPosition = 0;
 
     projectm_playlist_set_shuffle(_playlist, false);
 
@@ -299,7 +304,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
                                  && _isAudioPlaybackActive;
 
         if (canCycleFavorites && _cycleFavoritesActive && now >= _cycleFavoritesDeadline) {
-            NSArray<NSString *> *paths = _resolvedCyclePaths;
+            NSArray<NSString *> *paths = nil;
+            @synchronized (self) { paths = _resolvedCyclePaths; }
             if (paths.count > 0) {
                 PMCycleFavoritesMode mode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
                 if (mode == PMCycleFavoritesModeRandom) {
@@ -320,6 +326,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         if (!canCycleFavorites && _cycleFavoritesActive) {
             _cycleFavoritesActive = NO;
+            _cycleFavoritesDeadline = 0.0;
         }
 
         if (canCycleFavorites && !_cycleFavoritesActive) {

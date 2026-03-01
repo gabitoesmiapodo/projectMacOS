@@ -267,7 +267,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSMenu *favoritesMenu = [[NSMenu alloc] initWithTitle:@"Favorites"];
 
     // --- Save Current ---
-    NSMenuItem *saveCurrentItem = [favoritesMenu addItemWithTitle:@"Add current preset"
+    NSMenuItem *saveCurrentItem = [favoritesMenu addItemWithTitle:@"Add Current Preset"
                                                            action:@selector(saveCurrentToFavorites:)
                                                     keyEquivalent:@""];
     saveCurrentItem.target = self;
@@ -879,6 +879,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 - (void)rebuildResolvedCyclePaths {
     NSMutableArray<NSString *> *paths = [NSMutableArray array];
     NSString *presetsDir = [self presetsDirectoryPath];
+    NSFileManager *fm = [NSFileManager defaultManager];
     for (NSDictionary *entry in self.loadedFavorites) {
         id rawPath = entry[@"path"];
         if (![rawPath isKindOfClass:[NSString class]] || [(NSString *)rawPath length] == 0) continue;
@@ -886,13 +887,15 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         if (![path hasPrefix:@"/"]) {
             path = [presetsDir stringByAppendingPathComponent:path];
         }
+        if (![fm fileExistsAtPath:path]) continue;
         [paths addObject:path];
     }
-    _resolvedCyclePaths = [paths copy];
+    @synchronized (self) { _resolvedCyclePaths = [paths copy]; }
 }
 
 - (void)setCycleFavoritesMode:(id)sender {
     NSMenuItem *item = (NSMenuItem *)sender;
+    if (item.tag < PMCycleFavoritesModeOff || item.tag > PMCycleFavoritesModeRandom) return;
     PMCycleFavoritesMode tappedMode = (PMCycleFavoritesMode)item.tag;
     PMCycleFavoritesMode currentMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
 
