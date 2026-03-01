@@ -355,7 +355,6 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
                                    keyEquivalent:@""];
     shuffle.target = self;
     shuffle.state = cfg_preset_shuffle ? NSControlStateValueOn : NSControlStateValueOff;
-    shuffle.toolTip = @"When enabled, presets will change randomly after a set amount of time.";
 
     // MARK: Cycle Favorites submenu
     PMCycleFavoritesMode currentCycleMode = (PMCycleFavoritesMode)(NSInteger)cfg_cycle_favorites_mode;
