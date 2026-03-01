@@ -2,6 +2,13 @@
 
 #import <Cocoa/Cocoa.h>
 
+typedef NS_ENUM(NSInteger, PMCycleFavoritesMode) {
+    PMCycleFavoritesModeOff = 0,
+    PMCycleFavoritesModeAscending,
+    PMCycleFavoritesModeDescending,
+    PMCycleFavoritesModeRandom,
+};
+
 typedef NS_ENUM(NSInteger, PMPresetRequestType) {
     PMPresetRequestTypeNone = 0,
     PMPresetRequestTypeNext,
@@ -109,3 +116,16 @@ FOUNDATION_EXPORT NSString *PMFavoriteStoredPathForFullPath(NSString *fullPath, 
 /// - must be NSDictionary with a non-empty "name" NSString
 /// - if "path" is present, it must be a non-empty NSString
 FOUNDATION_EXPORT BOOL PMFavoriteImportEntryIsValid(id candidate);
+
+/// Return next favorites index for ascending/descending cycling with wrap-around.
+FOUNDATION_EXPORT NSInteger PMNextCycleFavoritesIndex(NSInteger currentIndex, NSUInteger count, PMCycleFavoritesMode mode);
+
+/// Return a shuffled array of all indices 0..(count-1).
+FOUNDATION_EXPORT NSArray<NSNumber *> *PMBuildRandomFavoritesOrder(NSUInteger count);
+
+/// Return YES if the Cycle Favorites menu should be disabled (no favorites available).
+FOUNDATION_EXPORT BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCount);
+
+/// Return a valid PMCycleFavoritesMode for the raw int stored in cfg_cycle_favorites_mode.
+/// Returns PMCycleFavoritesModeOff for any unrecognized value.
+FOUNDATION_EXPORT PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue);

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 macOS-only foobar2000 component that displays projectM (MilkDrop-compatible) visualizations. Receives PCM audio from foobar2000's visualization stream and feeds it to projectM, which renders via OpenGL.
 
 - License: LGPL v2.1
-- Version: 1.0.1 (projectM 4.1.6 C API, statically linked)
+- Version: 1.0.2 (projectM 4.1.6 C API, statically linked)
 
 ## Build Commands
 
@@ -63,7 +63,8 @@ foo_vis_projectMacOS.component (macOS bundle, statically linked)
 | `mac/ProjectMView+Presets.mm` | Preset data-source resolution, ZIP extraction, playlist lifecycle |
 | `mac/ProjectMView+Menu.mm` | Context menu, preset browser UI, fullscreen/help/interactions |
 | `mac/ProjectMRegistration.mm` | Component metadata, cfg globals, controller and `ui_element_mac` registration |
-| `mac/ProjectMMenuLogic.h/.mm` | Pure helper logic for title truncation and preset display names |
+| `mac/ProjectMMenuLogic.h/.mm` | Pure helper logic: title truncation, preset display names, cycle favorites logic |
+| `mac/tests/ProjectMMenuLogicTests.mm` | XCTest unit tests for all pure logic functions |
 | `mac/stdafx.h` | Precompiled header: foobar2000 SDK + Cocoa imports |
 | `mac/zipfs/zipfs.hpp/.cpp` | ZIP filesystem wrapper |
 | `mac/zipfs/unzip.c`, `ioapi.c` | MiniZip decompression |
@@ -99,7 +100,10 @@ The component extracts this zip to a temp directory at startup and cleans it up 
 - **Preset tracking**: via `projectm_playlist_set_preset_switched_event_callback`.
 - **Audio**: `get_chunk_absolute()` returns float samples; convert to int16 via `audio_math::convert_to_int16()`, feed to `projectm_pcm_add_int16()`.
 - **Render loop**: CVDisplayLink fires on vsync; `renderFrame` calls `projectm_opengl_render_frame()` under `[openGLContext makeCurrentContext]`.
-- **Persistent settings**: `cfg_bool cfg_preset_shuffle`, `cfg_string cfg_preset_name`, `cfg_int cfg_preset_duration` (20s default).
+- **Persistent settings**: `cfg_bool cfg_preset_shuffle`, `cfg_string cfg_preset_name`, `cfg_int cfg_preset_duration` (30s default), `cfg_string cfg_preset_favorites` (JSON), `cfg_int cfg_cycle_favorites_mode` (0=Off, 1=Ascending, 2=Descending, 3=Random).
+- **Favorites**: stored as JSON in `cfg_preset_favorites`. Paths are relative to the presets directory when possible. Managed via `ProjectMView+Menu.mm` (`loadedFavorites`, `persistFavorites`).
+- **Cycle Favorites**: timer-based cycling within the favorites list. Active only when music is playing and visualization is not paused. Mutual exclusion with shuffle. Any manual preset selection disables both via `disableAutoplay`.
+- **Transitions**: all preset switches use smooth cross-fade (`PMUseHardCutTransitions()` returns `NO`).
 - **foobar2000 bridging**: `fb2k::wrapNSObject()` / `unwrapNSObject()` from `commonObjects-Apple.h`; `instantiate()` returns wrapped `NSViewController`.
 - **OpenGL deprecation**: suppressed via `#pragma clang diagnostic ignored "-Wdeprecated-declarations"`.
 - **pfc assert stub**: `namespace pfc { void myassert(...) {} }` is required because SDK libs are Release but the component may build with debug flags.
