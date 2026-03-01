@@ -47,6 +47,23 @@ The zip file will be automatically extracted and cached for future use to speed 
 
 Optionally you can extract the zip file (keep the folder structure as it is) and delete the zip file, in case you want to edit the presets, add more, or remove some.
 
+## Controls
+
+Right-click anywhere on the visualization to open the context menu.
+
+| Control | Description |
+|---------|-------------|
+| **Presets** | Browse and load presets from the preset library. |
+| **Pause / Resume** | Freeze or resume the current visualization. Click the visualization area while paused to resume. |
+| **Previous / Next** | Switch to the previous or next preset. |
+| **Random Pick** | Load a random preset. |
+| **Favorites** | Save the current preset to your favorites list for quick access. Use Manage to export or import your list as JSON. |
+| **Shuffle Presets** | Automatically switch to a random preset after the configured delay. |
+| **Cycle Favorites** | Automatically cycle through your saved favorites in Ascending, Descending, or Random order, using the same delay. Enabling this disables Shuffle, and vice versa. Any manual preset selection stops cycling. |
+| **Delay** | Set the delay between automatic preset switches (15s, 30s, 45s, 1m). Applies to both Shuffle and Cycle Favorites. |
+| **Double-click** | Toggle fullscreen mode. |
+| **ESC** | Exit fullscreen. |
+
 ## Dev Info
 
 ### Requirements
