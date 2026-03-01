@@ -141,4 +141,6 @@ extern const void *kPresetMenuPathKey;
 - (void)setCycleFavoritesMode:(id)sender;
 /// Rebuild _resolvedCyclePaths from current loadedFavorites.
 - (void)rebuildResolvedCyclePaths;
+/// Disable shuffle and cycle favorites (called on any manual preset selection).
+- (void)disableAutoplay;
 @end

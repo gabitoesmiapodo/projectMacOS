@@ -159,6 +159,7 @@
     NSString *presetPath = [item.representedObject isKindOfClass:[NSString class]] ? (NSString *)item.representedObject : nil;
     if (!presetPath || presetPath.length == 0) return;
 
+    [self disableAutoplay];
     [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:presetPath];
 }
 
@@ -656,19 +657,22 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 - (void)nextPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-        [self enqueuePresetRequest:PMPresetRequestTypeNext presetPath:nil];
+    [self disableAutoplay];
+    [self enqueuePresetRequest:PMPresetRequestTypeNext presetPath:nil];
 }
 
 - (void)previousPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-        [self enqueuePresetRequest:PMPresetRequestTypePrevious presetPath:nil];
+    [self disableAutoplay];
+    [self enqueuePresetRequest:PMPresetRequestTypePrevious presetPath:nil];
 }
 
 - (void)randomPreset:(id)sender {
     (void)sender;
     if (!_projectM || !_playlist) return;
-        [self enqueuePresetRequest:PMPresetRequestTypeRandom presetPath:nil];
+    [self disableAutoplay];
+    [self enqueuePresetRequest:PMPresetRequestTypeRandom presetPath:nil];
 }
 
 - (void)processPendingPresetRequestInRenderLoop {
@@ -811,10 +815,8 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         return;
     }
 
+    [self disableAutoplay];
     [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
-    cfg_preset_shuffle = false;
-    _pendingShuffleEnable = NO;
-    _shuffleEnableDeadline = 0.0;
 }
 
 - (void)loadFavoriteFromMenuItem:(id)sender {
@@ -858,6 +860,15 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         FB2K_console_print("projectM: favorites export failed: ",
                            [[error localizedDescription] UTF8String]);
     }
+}
+
+- (void)disableAutoplay {
+    cfg_preset_shuffle = false;
+    _pendingShuffleEnable = NO;
+    _shuffleEnableDeadline = 0.0;
+    cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
+    _cycleFavoritesActive = NO;
+    _cycleFavoritesDeadline = 0.0;
 }
 
 - (void)rebuildResolvedCyclePaths {
