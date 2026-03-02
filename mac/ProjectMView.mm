@@ -316,41 +316,39 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             _playlistShuffleEnabled = shouldShuffleNow;
         }
 
-        PMCycleFavoritesMode cycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
-        BOOL canCycleFavorites = (cycleMode != PMCycleFavoritesModeOff)
-                                 && !_isVisualizationPaused
-                                 && _isAudioPlaybackActive;
+        @synchronized (self) {
+            PMCycleFavoritesMode cycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
+            BOOL canCycleFavorites = (cycleMode != PMCycleFavoritesModeOff)
+                                     && !_isVisualizationPaused
+                                     && _isAudioPlaybackActive;
 
-        if (canCycleFavorites || _cycleFavoritesActive) {
-            @synchronized (self) {
-                if (canCycleFavorites && _cycleFavoritesActive && now >= _cycleFavoritesDeadline) {
-                    NSArray<NSString *> *paths = _resolvedCyclePaths;
-                    if (paths.count > 0) {
-                        if (cycleMode == PMCycleFavoritesModeRandom) {
-                            if (_cycleFavoritesRandomPosition == NSNotFound) {
-                                _cycleFavoritesRandomPosition = 0;
-                            } else {
-                                _cycleFavoritesRandomPosition++;
-                                if (_cycleFavoritesRandomPosition >= _cycleFavoritesRandomOrder.count) {
-                                    _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
-                                    _cycleFavoritesRandomPosition = 0;
-                                }
-                            }
-                            _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[_cycleFavoritesRandomPosition] integerValue];
+            if (canCycleFavorites && _cycleFavoritesActive && now >= _cycleFavoritesDeadline) {
+                NSArray<NSString *> *paths = _resolvedCyclePaths;
+                if (paths.count > 0) {
+                    if (cycleMode == PMCycleFavoritesModeRandom) {
+                        if (_cycleFavoritesRandomPosition == NSNotFound) {
+                            _cycleFavoritesRandomPosition = 0;
                         } else {
-                            _cycleFavoritesIndex = PMNextCycleFavoritesIndex(_cycleFavoritesIndex, paths.count, cycleMode);
+                            _cycleFavoritesRandomPosition++;
+                            if (_cycleFavoritesRandomPosition >= _cycleFavoritesRandomOrder.count) {
+                                _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
+                                _cycleFavoritesRandomPosition = 0;
+                            }
                         }
-                        NSString *path = paths[(NSUInteger)_cycleFavoritesIndex];
-                        [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
+                        _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[_cycleFavoritesRandomPosition] integerValue];
+                    } else {
+                        _cycleFavoritesIndex = PMNextCycleFavoritesIndex(_cycleFavoritesIndex, paths.count, cycleMode);
                     }
-                    _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
-                } else if (!canCycleFavorites && _cycleFavoritesActive) {
-                    _cycleFavoritesActive = NO;
-                    _cycleFavoritesDeadline = 0.0;
-                } else if (canCycleFavorites && !_cycleFavoritesActive) {
-                    _cycleFavoritesActive = YES;
-                    _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+                    NSString *path = paths[(NSUInteger)_cycleFavoritesIndex];
+                    [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
                 }
+                _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
+            } else if (!canCycleFavorites && _cycleFavoritesActive) {
+                _cycleFavoritesActive = NO;
+                _cycleFavoritesDeadline = 0.0;
+            } else if (canCycleFavorites && !_cycleFavoritesActive) {
+                _cycleFavoritesActive = YES;
+                _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
             }
         }
 
