@@ -769,7 +769,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
                 _cycleFavoritesDeadline = 0.0;
             } else {
                 if (cycleMode == PMCycleFavoritesModeRandom) {
-                    _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+                    _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
                     _cycleFavoritesRandomPosition = NSNotFound;
                 } else if ((NSUInteger)_cycleFavoritesIndex >= paths.count) {
                     _cycleFavoritesIndex = (cycleMode == PMCycleFavoritesModeDescending)
@@ -925,6 +925,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         if (paths.count == 0) {
             cfg_cycle_favorites_mode = PMCycleFavoritesModeOff;
             _cycleFavoritesActive = NO;
+            _cycleFavoritesDeadline = 0.0;
             return;
         }
 
@@ -938,7 +939,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
             [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[paths.count - 1]];
         } else {
             // Random: build a random order, start at position 0, and immediately select the first randomized favorite
-            _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+            _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
             _cycleFavoritesRandomPosition = 0;
             _cycleFavoritesIndex = [_cycleFavoritesRandomOrder[0] integerValue];
             [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:paths[(NSUInteger)_cycleFavoritesIndex]];
