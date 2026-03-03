@@ -88,7 +88,7 @@ bash scripts/run-tests.sh
 
 ## Acknowledgements
 
-- Initally a fork of [foo_vis_projectM](https://github.com/djdron/foo_vis_projectM), a foobar2000 visualization plugin.
+- Initially a fork of [foo_vis_projectM](https://github.com/djdron/foo_vis_projectM), a foobar2000 visualization plugin.
 - Uses code taken from [projectM](https://github.com/projectM-visualizer/projectm) as a dependency.
 - Uses [foobar2000 SDK](https://www.foobar2000.org/SDK) as a dependency.
 - Preset library from [Creme of the Crop presets](https://github.com/projectM-visualizer/presets-cream-of-the-crop).

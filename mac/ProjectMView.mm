@@ -237,6 +237,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _cycleFavoritesRandomPosition = NSNotFound;
     _cycleFavoritesIndex = 0;
 
+    projectm_playlist_set_shuffle(_playlist, false);
+
+    [self loadPresetsFromCurrentSource];
+
     PMCycleFavoritesMode persistedCycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
     if (persistedCycleMode != PMCycleFavoritesModeOff) {
         [self rebuildResolvedCyclePaths];
@@ -247,15 +251,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             if (persistedCycleMode == PMCycleFavoritesModeDescending) {
                 _cycleFavoritesIndex = (NSInteger)(paths.count - 1);
             } else if (persistedCycleMode == PMCycleFavoritesModeRandom) {
-                _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+                _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
                 _cycleFavoritesRandomPosition = NSNotFound;
             }
         }
     }
-
-    projectm_playlist_set_shuffle(_playlist, false);
-
-    [self loadPresetsFromCurrentSource];
 
     projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
 
@@ -331,7 +331,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
                         } else {
                             _cycleFavoritesRandomPosition++;
                             if (_cycleFavoritesRandomPosition >= _cycleFavoritesRandomOrder.count) {
-                                _cycleFavoritesRandomOrder = [PMBuildRandomFavoritesOrder(paths.count) mutableCopy];
+                                _cycleFavoritesRandomOrder = PMBuildRandomFavoritesOrder(paths.count);
                                 _cycleFavoritesRandomPosition = 0;
                             }
                         }
@@ -343,14 +343,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
                     [self enqueuePresetRequest:PMPresetRequestTypeSelectPath presetPath:path];
                 }
                 _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
-            }
-
-            if (!canCycleFavorites && _cycleFavoritesActive) {
+            } else if (!canCycleFavorites && _cycleFavoritesActive) {
                 _cycleFavoritesActive = NO;
                 _cycleFavoritesDeadline = 0.0;
-            }
-
-            if (canCycleFavorites && !_cycleFavoritesActive) {
+            } else if (canCycleFavorites && !_cycleFavoritesActive) {
                 _cycleFavoritesActive = YES;
                 _cycleFavoritesDeadline = now + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
             }

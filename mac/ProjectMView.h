@@ -43,7 +43,7 @@ extern const void *kPresetMenuPathKey;
     NSMutableArray *_favorites;
     NSString *_currentPresetPath;
     NSInteger _cycleFavoritesIndex;
-    NSMutableArray<NSNumber *> *_cycleFavoritesRandomOrder;
+    NSArray<NSNumber *> *_cycleFavoritesRandomOrder;
     NSUInteger _cycleFavoritesRandomPosition;
     double _cycleFavoritesDeadline;
     BOOL _cycleFavoritesActive;
