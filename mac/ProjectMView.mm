@@ -237,6 +237,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _cycleFavoritesRandomPosition = NSNotFound;
     _cycleFavoritesIndex = 0;
 
+    projectm_playlist_set_shuffle(_playlist, false);
+
+    [self loadPresetsFromCurrentSource];
+
     PMCycleFavoritesMode persistedCycleMode = PMValidatedCycleFavoritesMode((int)cfg_cycle_favorites_mode);
     if (persistedCycleMode != PMCycleFavoritesModeOff) {
         [self rebuildResolvedCyclePaths];
@@ -252,10 +256,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             }
         }
     }
-
-    projectm_playlist_set_shuffle(_playlist, false);
-
-    [self loadPresetsFromCurrentSource];
 
     projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
 
