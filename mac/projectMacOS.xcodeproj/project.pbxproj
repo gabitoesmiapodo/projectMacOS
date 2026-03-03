@@ -444,7 +444,7 @@
 					"$(SRCROOT)/../deps/foobar2000-sdk/foobar2000/shared/build/Release",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.3;
 				OTHER_LDFLAGS = (
 					"-lprojectM-4",
 					"-lprojectM-4-playlist",
@@ -485,7 +485,7 @@
 					"$(SRCROOT)/../deps/foobar2000-sdk/foobar2000/shared/build/Release",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.3;
 				OTHER_LDFLAGS = (
 					"-lprojectM-4",
 					"-lprojectM-4-playlist",

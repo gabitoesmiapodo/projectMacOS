@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 macOS-only foobar2000 component that displays projectM (MilkDrop-compatible) visualizations. Receives PCM audio from foobar2000's visualization stream and feeds it to projectM, which renders via OpenGL.
 
 - License: LGPL v2.1
-- Version: 1.0.2 (projectM 4.1.6 C API, statically linked)
+- Version: 1.0.3 (projectM 4.1.6 C API, statically linked)
 
 ## Build Commands
 
