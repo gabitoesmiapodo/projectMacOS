@@ -12,7 +12,7 @@ Open-source music visualizer for [foobar2000](https://www.foobar2000.org) on Mac
 
 ## Adding the visualization to your layout
 
-You can add the component to your layout in `View / Layout / Edit Layout` placing the `projectMacOS` in any place you like.
+You can add the component to your layout in `View / Layout / Edit Layout` placing `projectMacOS` in any place you like.
 
 For example, if you use this template:
 
