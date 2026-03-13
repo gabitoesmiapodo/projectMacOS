@@ -55,6 +55,8 @@ extern const void *kPresetMenuPathKey;
     uint64_t _lastRenderTimestamp;
     int _cachedWidth;
     int _cachedHeight;
+    uint64_t _fpsCounterStart;
+    uint32_t _fpsFrameCount;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
