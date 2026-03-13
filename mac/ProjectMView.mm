@@ -222,6 +222,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     glViewport(0, 0, width, height);
     projectm_set_window_size(_projectM, width, height);
+    _cachedWidth = width;
+    _cachedHeight = height;
     projectm_set_mesh_size(_projectM, 128, (size_t)(128 * heightWidthRatio));
     projectm_set_fps(_projectM, 60);
     projectm_set_soft_cut_duration(_projectM, 3.0);
@@ -312,8 +314,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _fpsFrameCount++;
         if (_fpsFrameCount >= 300) {
             if (_fpsCounterStart > 0) {
-                mach_timebase_info_data_t tbInfo;
-                mach_timebase_info(&tbInfo);
+                static mach_timebase_info_data_t tbInfo = {0, 0};
+                if (tbInfo.denom == 0) mach_timebase_info(&tbInfo);
                 double elapsed = (double)(now_mach - _fpsCounterStart) * tbInfo.numer / tbInfo.denom / 1e9;
                 int fps = (elapsed > 0) ? (int)(300.0 / elapsed) : 0;
                 PMLog("projectM: fps=",
@@ -321,16 +323,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             }
             _fpsCounterStart = now_mach;
             _fpsFrameCount = 0;
-        }
-
-        int width = 0;
-        int height = 0;
-        [self getDrawableSizeWidth:&width height:&height];
-        if (width != _cachedWidth || height != _cachedHeight) {
-            glViewport(0, 0, width, height);
-            projectm_set_window_size(_projectM, width, height);
-            _cachedWidth = width;
-            _cachedHeight = height;
         }
 
         [self addPCM];
