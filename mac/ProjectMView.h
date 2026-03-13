@@ -48,6 +48,9 @@ extern const void *kPresetMenuPathKey;
     double _cycleFavoritesDeadline;
     BOOL _cycleFavoritesActive;
     NSArray<NSString *> *_resolvedCyclePaths;
+    uint64_t _lastRenderTimestamp;
+    int _cachedWidth;
+    int _cachedHeight;
 }
 /// Render one projectM frame.
 - (void)renderFrame;

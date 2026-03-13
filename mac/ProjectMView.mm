@@ -8,6 +8,22 @@
 #pragma clang diagnostic pop
 
 #import <vector>
+#import <mach/mach_time.h>
+
+namespace {
+
+static uint64_t frameDurationInMachTicks() {
+    static uint64_t duration = 0;
+    if (duration == 0) {
+        mach_timebase_info_data_t info;
+        mach_timebase_info(&info);
+        double nsPerTick = (double)info.numer / info.denom;
+        duration = (uint64_t)((1e9 / 60.0) / nsPerTick);
+    }
+    return duration;
+}
+
+} // anonymous namespace
 
 namespace {
 
@@ -88,6 +104,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _cycleFavoritesDeadline = 0.0;
         _cycleFavoritesActive = NO;
         _resolvedCyclePaths = nil;
+        _lastRenderTimestamp = 0;
+        _cachedWidth = 0;
+        _cachedHeight = 0;
     }
     return self;
 }
@@ -284,11 +303,23 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             return;
         }
 
+        uint64_t now_mach = mach_absolute_time();
+        if (now_mach - _lastRenderTimestamp < frameDurationInMachTicks()) {
+            CGLUnlockContext(cglContext);
+            contextLocked = NO;
+            return;
+        }
+        _lastRenderTimestamp = now_mach;
+
         int width = 0;
         int height = 0;
         [self getDrawableSizeWidth:&width height:&height];
-        glViewport(0, 0, width, height);
-        projectm_set_window_size(_projectM, width, height);
+        if (width != _cachedWidth || height != _cachedHeight) {
+            glViewport(0, 0, width, height);
+            projectm_set_window_size(_projectM, width, height);
+            _cachedWidth = width;
+            _cachedHeight = height;
+        }
 
         [self addPCM];
 
@@ -361,7 +392,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         projectm_opengl_render_frame(_projectM);
 
-        glFlush();
         [[self openGLContext] flushBuffer];
 
         CGLUnlockContext(cglContext);
@@ -451,6 +481,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     glViewport(0, 0, width, height);
     projectm_set_window_size(_projectM, width, height);
+    _cachedWidth = width;
+    _cachedHeight = height;
 
     CGLUnlockContext(cglContext);
 }
