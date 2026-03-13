@@ -325,6 +325,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             _fpsFrameCount = 0;
         }
 
+        int width = 0;
+        int height = 0;
+        [self getDrawableSizeWidth:&width height:&height];
+        if (width != _cachedWidth || height != _cachedHeight) {
+            glViewport(0, 0, width, height);
+            projectm_set_window_size(_projectM, width, height);
+            _cachedWidth = width;
+            _cachedHeight = height;
+        }
+
         [self addPCM];
 
         double now = CFAbsoluteTimeGetCurrent();
