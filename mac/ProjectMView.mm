@@ -107,6 +107,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _lastRenderTimestamp = 0;
         _cachedWidth = 0;
         _cachedHeight = 0;
+        _fpsCounterStart = 0;
+        _fpsFrameCount = 0;
     }
     return self;
 }
@@ -311,6 +313,20 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         }
         _lastRenderTimestamp = now_mach;
 
+        _fpsFrameCount++;
+        if (_fpsFrameCount >= 300) {
+            if (_fpsCounterStart > 0) {
+                mach_timebase_info_data_t tbInfo;
+                mach_timebase_info(&tbInfo);
+                double elapsed = (double)(now_mach - _fpsCounterStart) * tbInfo.numer / tbInfo.denom / 1e9;
+                int fps = (elapsed > 0) ? (int)(300.0 / elapsed) : 0;
+                PMLog("projectM: fps=",
+                    [[NSString stringWithFormat:@"%d viewport=%dx%d", fps, _cachedWidth, _cachedHeight] UTF8String]);
+            }
+            _fpsCounterStart = now_mach;
+            _fpsFrameCount = 0;
+        }
+
         int width = 0;
         int height = 0;
         [self getDrawableSizeWidth:&width height:&height];
@@ -415,6 +431,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAudioPlaybackActive = PMIsMusicPlaybackActive();
 
         if (wasPlaybackActive != _isAudioPlaybackActive) {
+            PMLog("projectM: playback state changed to ", _isAudioPlaybackActive ? "active" : "inactive");
             if (PMShouldResetShuffleTimerOnPlaybackTransition(wasPlaybackActive, _isAudioPlaybackActive, cfg_preset_shuffle)) {
                 _pendingShuffleEnable = YES;
                 _shuffleEnableDeadline = CFAbsoluteTimeGetCurrent() + (double)PMValidatedPresetDuration((int)cfg_preset_duration);
@@ -483,6 +500,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     projectm_set_window_size(_projectM, width, height);
     _cachedWidth = width;
     _cachedHeight = height;
+    PMLog("projectM: viewport resized to ",
+        [[NSString stringWithFormat:@"%dx%d", width, height] UTF8String]);
 
     CGLUnlockContext(cglContext);
 }

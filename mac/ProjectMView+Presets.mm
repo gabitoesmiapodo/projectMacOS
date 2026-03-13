@@ -721,6 +721,11 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     if (!view || !view->_playlist)
         return;
     [view refreshCurrentPresetName:(uint32_t)index];
+    char *name = projectm_playlist_item(view->_playlist, index);
+    if (name) {
+        PMLog("projectM: preset switched to ", [[[@(name) lastPathComponent] stringByDeletingPathExtension] UTF8String]);
+        projectm_playlist_free_string(name);
+    }
 }
 
 static void callbackPresetSwitchFailed(const char *preset_filename, const char *message, void *user_data) {
