@@ -12,15 +12,17 @@
 
 namespace {
 
-static uint64_t frameDurationInMachTicks() {
-    static uint64_t duration = 0;
-    if (duration == 0) {
+static uint64_t frameDurationInMachTicks(bool idle) {
+    static uint64_t duration60 = 0;
+    static uint64_t duration30 = 0;
+    if (duration60 == 0) {
         mach_timebase_info_data_t info;
         mach_timebase_info(&info);
         double nsPerTick = (double)info.numer / info.denom;
-        duration = (uint64_t)((1e9 / 60.0) / nsPerTick);
+        duration60 = (uint64_t)((1e9 / 60.0) / nsPerTick);
+        duration30 = (uint64_t)((1e9 / 30.0) / nsPerTick);
     }
-    return duration;
+    return idle ? duration30 : duration60;
 }
 
 } // anonymous namespace
@@ -300,7 +302,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         [[self openGLContext] makeCurrentContext];
 
         uint64_t now_mach = mach_absolute_time();
-        if (now_mach - _lastRenderTimestamp < frameDurationInMachTicks()) {
+        if (now_mach - _lastRenderTimestamp < frameDurationInMachTicks(!_isAudioPlaybackActive)) {
             CGLUnlockContext(cglContext);
             contextLocked = NO;
             return;
