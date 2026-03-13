@@ -11,6 +11,10 @@ extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
 extern cfg_string cfg_preset_favorites;
 extern cfg_int cfg_cycle_favorites_mode;
+extern cfg_bool cfg_debug_logging;
+
+#define PMLog(...)      do { if (cfg_debug_logging) FB2K_console_print(__VA_ARGS__); } while(0)
+#define PMLogError(...) FB2K_console_print(__VA_ARGS__)
 
 bool PMIsMusicPlaybackActive(void);
 void PMSyncMusicPlaybackState(void);

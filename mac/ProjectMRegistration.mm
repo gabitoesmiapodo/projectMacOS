@@ -19,12 +19,14 @@ static const GUID guid_cfg_preset_name           = { 0x186c5741, 0x701e, 0x4f2c,
 static const GUID guid_cfg_preset_duration       = { 0x48d9b7f5, 0x4446, 0x4ab7, { 0xb8, 0x71, 0xef, 0xc7, 0x59, 0x43, 0xb9, 0xcd } };
 static const GUID guid_cfg_preset_favorites      = { 0xa3b47c91, 0x2e5f, 0x4d8a, { 0xb6, 0x03, 0x71, 0xe9, 0xca, 0x2f, 0x58, 0xd1 } };
 static const GUID guid_cfg_cycle_favorites_mode  = { 0xd72e4a1f, 0x8c3b, 0x4e92, { 0xa1, 0x5d, 0x30, 0xf8, 0x7c, 0x2b, 0x6e, 0x49 } };
+static const GUID guid_cfg_debug_logging       = { 0xb4e91c3a, 0x6d27, 0x4f85, { 0x93, 0xa1, 0xd8, 0x5e, 0x4b, 0x72, 0xf6, 0x0c } };
 
 cfg_bool cfg_preset_shuffle(guid_cfg_preset_shuffle, false);
 cfg_string cfg_preset_name(guid_cfg_preset_name, "");
 cfg_int cfg_preset_duration(guid_cfg_preset_duration, 30);
 cfg_string cfg_preset_favorites(guid_cfg_preset_favorites, "");
 cfg_int cfg_cycle_favorites_mode(guid_cfg_cycle_favorites_mode, 0);
+cfg_bool cfg_debug_logging(guid_cfg_debug_logging, false);
 
 const void *kPresetMenuPathKey = &kPresetMenuPathKey;
 
