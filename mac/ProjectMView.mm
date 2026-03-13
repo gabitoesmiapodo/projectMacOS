@@ -141,13 +141,13 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     CVReturn createStatus = CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     if (createStatus != kCVReturnSuccess || !_displayLink) {
-        FB2K_console_print("projectM: CVDisplayLinkCreateWithActiveCGDisplays() failed.");
+        PMLogError("projectM: CVDisplayLinkCreateWithActiveCGDisplays() failed.");
         return;
     }
 
     CVReturn callbackStatus = CVDisplayLinkSetOutputCallback(_displayLink, &displayLinkCallback, (__bridge void *)self);
     if (callbackStatus != kCVReturnSuccess) {
-        FB2K_console_print("projectM: CVDisplayLinkSetOutputCallback() failed.");
+        PMLogError("projectM: CVDisplayLinkSetOutputCallback() failed.");
         [self destroyDisplayLink];
         return;
     }
@@ -156,14 +156,14 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     CGLPixelFormatObj cglPixelFormat = [[self pixelFormat] CGLPixelFormatObj];
     CVReturn linkStatus = CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(_displayLink, cglContext, cglPixelFormat);
     if (linkStatus != kCVReturnSuccess) {
-        FB2K_console_print("projectM: CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext() failed.");
+        PMLogError("projectM: CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext() failed.");
         [self destroyDisplayLink];
         return;
     }
 
     CVReturn startStatus = CVDisplayLinkStart(_displayLink);
     if (startStatus != kCVReturnSuccess) {
-        FB2K_console_print("projectM: CVDisplayLinkStart() failed.");
+        PMLogError("projectM: CVDisplayLinkStart() failed.");
         [self destroyDisplayLink];
     }
 }
@@ -181,21 +181,21 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         const GLubyte *glVersion = glGetString(GL_VERSION);
         const GLubyte *glRenderer = glGetString(GL_RENDERER);
         const GLubyte *glslVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
-        FB2K_console_print("projectM: CGL context active=", current ? "yes" : "no");
+        PMLog("projectM: CGL context active=", current ? "yes" : "no");
         if (glVersion) {
-            FB2K_console_print("projectM: OpenGL version=", (const char *)glVersion);
+            PMLog("projectM: OpenGL version=", (const char *)glVersion);
         } else {
-            FB2K_console_print("projectM: OpenGL version query returned null");
+            PMLogError("projectM: OpenGL version query returned null");
         }
         if (glslVersion) {
-            FB2K_console_print("projectM: GLSL version=", (const char *)glslVersion);
+            PMLog("projectM: GLSL version=", (const char *)glslVersion);
         } else {
-            FB2K_console_print("projectM: GLSL version query returned null");
+            PMLogError("projectM: GLSL version query returned null");
         }
         if (glRenderer) {
-            FB2K_console_print("projectM: OpenGL renderer=", (const char *)glRenderer);
+            PMLog("projectM: OpenGL renderer=", (const char *)glRenderer);
         } else {
-            FB2K_console_print("projectM: OpenGL renderer query returned null");
+            PMLogError("projectM: OpenGL renderer query returned null");
         }
         _didLogGLInfo = YES;
     }
@@ -204,7 +204,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     char *runtimeVersion = projectm_get_version_string();
     if (runtimeVersion) {
-        FB2K_console_print("projectM: runtime library version=", runtimeVersion);
+        PMLog("projectM: runtime library version=", runtimeVersion);
         projectm_free_string(runtimeVersion);
     }
 
@@ -212,7 +212,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     _projectM = projectm_create();
     if (!_projectM) {
-        FB2K_console_print("projectM: projectm_create() failed. Verify OpenGL context is current and compatible.");
+        PMLogError("projectM: projectm_create() failed. Verify OpenGL context is current and compatible.");
         return;
     }
 
@@ -230,7 +230,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     _playlist = projectm_playlist_create(_projectM);
     if (!_playlist) {
-        FB2K_console_print("projectM: projectm_playlist_create() failed.");
+        PMLogError("projectM: projectm_playlist_create() failed.");
         [self destroyProjectMState];
         return;
     }
@@ -399,7 +399,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
     @catch (NSException *exception) {
         _projectMInitialized = NO;
-        FB2K_console_print("projectM: Objective-C exception in renderFrame: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception in renderFrame: ", [[exception description] UTF8String]);
         if (contextLocked) {
             CGLUnlockContext(cglContext);
         }
@@ -457,7 +457,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             projectm_pcm_add_int16(_projectM, data.data(), (unsigned int)count, PROJECTM_MONO);
     }
     @catch (NSException *exception) {
-        FB2K_console_print("projectM: Objective-C exception in addPCM: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception in addPCM: ", [[exception description] UTF8String]);
     }
 }
 
