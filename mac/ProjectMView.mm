@@ -299,12 +299,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         [[self openGLContext] makeCurrentContext];
 
-        if (_isVisualizationPaused) {
-            CGLUnlockContext(cglContext);
-            contextLocked = NO;
-            return;
-        }
-
         uint64_t now_mach = mach_absolute_time();
         if (now_mach - _lastRenderTimestamp < frameDurationInMachTicks()) {
             CGLUnlockContext(cglContext);

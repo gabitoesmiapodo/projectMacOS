@@ -444,6 +444,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 - (void)togglePausePlayback:(id)sender {
     (void)sender;
 
+    BOOL nowPaused;
     CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
     BOOL contextLocked = NO;
     @try {
@@ -453,6 +454,11 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         }
 
         _isVisualizationPaused = !_isVisualizationPaused;
+        nowPaused = _isVisualizationPaused;
+
+        if (!nowPaused) {
+            _lastRenderTimestamp = 0;
+        }
 
         if (_projectM) {
             projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive));
@@ -471,8 +477,17 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         return;
     }
 
-    if (_isVisualizationPaused) {
-        return;
+    if (nowPaused) {
+        if (_displayLink) {
+            CVDisplayLinkStop(_displayLink);
+        }
+    } else {
+        if (_displayLink) {
+            CVReturn status = CVDisplayLinkStart(_displayLink);
+            if (status != kCVReturnSuccess) {
+                PMLogError("projectM: CVDisplayLinkStart() failed on unpause.");
+            }
+        }
     }
 }
 
