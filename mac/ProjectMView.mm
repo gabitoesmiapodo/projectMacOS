@@ -461,13 +461,25 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         t_size count = chunk.get_sample_count();
         auto channels = chunk.get_channel_count();
-        std::vector<t_int16> data(count * channels, 0);
-        audio_math::convert_to_int16(chunk.get_data(), count * channels, data.data(), 1.0);
+        t_size totalSamples = count * channels;
+
+        t_int16 stackBuffer[32768];
+        t_int16 *pcmData;
+        std::vector<t_int16> heapFallback;
+
+        if (totalSamples <= 32768) {
+            pcmData = stackBuffer;
+        } else {
+            heapFallback.resize(totalSamples);
+            pcmData = heapFallback.data();
+        }
+
+        audio_math::convert_to_int16(chunk.get_data(), totalSamples, pcmData, 1.0);
 
         if (channels == 2)
-            projectm_pcm_add_int16(_projectM, data.data(), (unsigned int)count, PROJECTM_STEREO);
+            projectm_pcm_add_int16(_projectM, pcmData, (unsigned int)count, PROJECTM_STEREO);
         else
-            projectm_pcm_add_int16(_projectM, data.data(), (unsigned int)count, PROJECTM_MONO);
+            projectm_pcm_add_int16(_projectM, pcmData, (unsigned int)count, PROJECTM_MONO);
     }
     @catch (NSException *exception) {
         PMLogError("projectM: Objective-C exception in addPCM: ", [[exception description] UTF8String]);
