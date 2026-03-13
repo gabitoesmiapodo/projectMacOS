@@ -464,7 +464,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         }
     }
     @catch (NSException *exception) {
-        FB2K_console_print("projectM: Objective-C exception in togglePausePlayback: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception in togglePausePlayback: ", [[exception description] UTF8String]);
         if (contextLocked) {
             CGLUnlockContext(cglContext);
         }
@@ -592,7 +592,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
                                               documentAttributes:nil
                                                            error:&error];
         if (!renderedHelp && error) {
-            FB2K_console_print("projectM: help HTML parse failed: ", [[error localizedDescription] UTF8String]);
+            PMLogError("projectM: help HTML parse failed: ", [[error localizedDescription] UTF8String]);
         }
 
         if (renderedHelp) {
@@ -720,7 +720,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         }
     }
     @catch (NSException *exception) {
-        FB2K_console_print("projectM: Objective-C exception while processing preset request: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception while processing preset request: ", [[exception description] UTF8String]);
     }
 }
 
@@ -865,8 +865,8 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding] ?: [NSData data];
     NSError *error = nil;
     if (![data writeToURL:panel.URL options:NSDataWritingAtomic error:&error]) {
-        FB2K_console_print("projectM: favorites export failed: ",
-                           [[error localizedDescription] UTF8String]);
+        PMLogError("projectM: favorites export failed: ",
+                   [[error localizedDescription] UTF8String]);
     }
 }
 
@@ -962,8 +962,8 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
     NSError *error = nil;
     NSData *data = [NSData dataWithContentsOfURL:panel.URL options:0 error:&error];
     if (!data) {
-        FB2K_console_print("projectM: favorites import read failed: ",
-                           [[error localizedDescription] UTF8String]);
+        PMLogError("projectM: favorites import read failed: ",
+                   [[error localizedDescription] UTF8String]);
         return;
     }
 
@@ -980,9 +980,9 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 
     if (added > 0) [self persistFavorites];
 
-    FB2K_console_print("projectM: favorites import: ",
-                       [[NSString stringWithFormat:@"%lu added, %lu skipped",
-                         (unsigned long)added, (unsigned long)skipped] UTF8String]);
+    PMLog("projectM: favorites import: ",
+          [[NSString stringWithFormat:@"%lu added, %lu skipped",
+            (unsigned long)added, (unsigned long)skipped] UTF8String]);
 }
 
 @end
