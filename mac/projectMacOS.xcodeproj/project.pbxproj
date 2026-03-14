@@ -29,6 +29,12 @@
 		AA000012AA000012AA000012 /* zipfs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA000002AA000002AA000002 /* zipfs.cpp */; };
 		AA000013AA000013AA000013 /* ioapi.c in Sources */ = {isa = PBXBuildFile; fileRef = AA000003AA000003AA000003 /* ioapi.c */; };
 		AA000014AA000014AA000014 /* unzip.c in Sources */ = {isa = PBXBuildFile; fileRef = AA000004AA000004AA000004 /* unzip.c */; };
+		AF100003AF100003AF100003 /* ProjectMPrefsHelpers.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF100002AF100002AF100002 /* ProjectMPrefsHelpers.mm */; };
+		AF100005AF100005AF100005 /* ProjectMPrefsPerformance.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF100004AF100004AF100004 /* ProjectMPrefsPerformance.mm */; };
+		AF100007AF100007AF100007 /* ProjectMPrefsTransitions.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF100006AF100006AF100006 /* ProjectMPrefsTransitions.mm */; };
+		AF100009AF100009AF100009 /* ProjectMPrefsVisualization.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF100008AF100008AF100008 /* ProjectMPrefsVisualization.mm */; };
+		AF10000BAF10000BAF10000B /* ProjectMPrefsPresets.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF10000AAF10000AAF10000A /* ProjectMPrefsPresets.mm */; };
+		AF10000DAF10000DAF10000D /* ProjectMPrefsDiagnostics.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF10000CAF10000CAF10000C /* ProjectMPrefsDiagnostics.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +66,13 @@
 		AA000002AA000002AA000002 /* zipfs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = zipfs.cpp; path = zipfs/zipfs.cpp; sourceTree = "<group>"; };
 		AA000003AA000003AA000003 /* ioapi.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = ioapi.c; path = zipfs/ioapi.c; sourceTree = "<group>"; };
 		AA000004AA000004AA000004 /* unzip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = unzip.c; path = zipfs/unzip.c; sourceTree = "<group>"; };
+		AF100001AF100001AF100001 /* ProjectMPrefsParent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ProjectMPrefsParent.h; path = ProjectMPrefsParent.h; sourceTree = "<group>"; };
+		AF100002AF100002AF100002 /* ProjectMPrefsHelpers.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsHelpers.mm; path = ProjectMPrefsHelpers.mm; sourceTree = "<group>"; };
+		AF100004AF100004AF100004 /* ProjectMPrefsPerformance.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsPerformance.mm; path = ProjectMPrefsPerformance.mm; sourceTree = "<group>"; };
+		AF100006AF100006AF100006 /* ProjectMPrefsTransitions.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsTransitions.mm; path = ProjectMPrefsTransitions.mm; sourceTree = "<group>"; };
+		AF100008AF100008AF100008 /* ProjectMPrefsVisualization.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsVisualization.mm; path = ProjectMPrefsVisualization.mm; sourceTree = "<group>"; };
+		AF10000AAF10000AAF10000A /* ProjectMPrefsPresets.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsPresets.mm; path = ProjectMPrefsPresets.mm; sourceTree = "<group>"; };
+		AF10000CAF10000CAF10000C /* ProjectMPrefsDiagnostics.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = ProjectMPrefsDiagnostics.mm; path = ProjectMPrefsDiagnostics.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +123,13 @@
 				AC200001AC200001AC200001 /* ProjectMView+Presets.mm */,
 				AB900002AB900002AB900002 /* ProjectMRegistration.mm */,
 				AE100001AE100001AE100001 /* ProjectMPreferences.mm */,
+				AF100001AF100001AF100001 /* ProjectMPrefsParent.h */,
+				AF100002AF100002AF100002 /* ProjectMPrefsHelpers.mm */,
+				AF100004AF100004AF100004 /* ProjectMPrefsPerformance.mm */,
+				AF100006AF100006AF100006 /* ProjectMPrefsTransitions.mm */,
+				AF100008AF100008AF100008 /* ProjectMPrefsVisualization.mm */,
+				AF10000AAF10000AAF10000A /* ProjectMPrefsPresets.mm */,
+				AF10000CAF10000CAF10000C /* ProjectMPrefsDiagnostics.mm */,
 				AB400001AB400001AB400001 /* Tests */,
 				AA000002AA000002AA000002 /* zipfs.cpp */,
 				AA000003AA000003AA000003 /* ioapi.c */,
@@ -288,6 +308,12 @@
 				AC100001AC100001AC100001 /* ProjectMView+Presets.mm in Sources */,
 				AB900001AB900001AB900001 /* ProjectMRegistration.mm in Sources */,
 				AE200001AE200001AE200001 /* ProjectMPreferences.mm in Sources */,
+				AF100003AF100003AF100003 /* ProjectMPrefsHelpers.mm in Sources */,
+				AF100005AF100005AF100005 /* ProjectMPrefsPerformance.mm in Sources */,
+				AF100007AF100007AF100007 /* ProjectMPrefsTransitions.mm in Sources */,
+				AF100009AF100009AF100009 /* ProjectMPrefsVisualization.mm in Sources */,
+				AF10000BAF10000BAF10000B /* ProjectMPrefsPresets.mm in Sources */,
+				AF10000DAF10000DAF10000D /* ProjectMPrefsDiagnostics.mm in Sources */,
 				AA000012AA000012AA000012 /* zipfs.cpp in Sources */,
 				AA000013AA000013AA000013 /* ioapi.c in Sources */,
 				AA000014AA000014AA000014 /* unzip.c in Sources */,

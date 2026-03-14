@@ -116,7 +116,7 @@
 
 namespace {
 
-class preferences_page_presets : public preferences_page {
+class preferences_page_presets : public preferences_page_v2 {
 public:
     service_ptr instantiate() override {
         return fb2k::wrapNSObject([ProjectMPrefsPresetsViewController new]);
