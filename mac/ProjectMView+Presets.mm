@@ -594,6 +594,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
 
             // Apply sort order
+            // sortOrder values: 0=ascending by filename, 1=descending by filename,
+            //                   2=ascending by full path, 3=descending by full path
             int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
             projectm_playlist_sort_predicate sortPredicate = (sortOrder <= 1)
                 ? SORT_PREDICATE_FILENAME_ONLY
@@ -606,6 +608,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             // Apply filter
             NSArray<NSString *> *filterPatterns = PMParsePresetFilter(@(cfg_preset_filter.get().get_ptr()));
             if (filterPatterns.count > 0) {
+                // cStrings keeps the NSData objects alive until after projectm_playlist_set_filter;
+                // patterns[i] points into cStrings[i].bytes and must not outlive it.
                 NSMutableArray<NSData *> *cStrings = [NSMutableArray array];
                 const char **patterns = (const char **)malloc(sizeof(const char *) * filterPatterns.count);
                 for (NSUInteger i = 0; i < filterPatterns.count; i++) {

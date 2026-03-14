@@ -623,7 +623,14 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _lastSortOrder = currentSortOrder;
         _lastFilter = currentFilter;
         PMLog("projectM: reloading presets due to settings change");
-        [self loadPresetsFromCurrentSource];
+        // Dispatch to main thread to avoid blocking the CVDisplayLink thread with file I/O
+        // (ZIP extraction and filesystem enumeration in loadPresetsFromCurrentSource).
+        dispatch_async(dispatch_get_main_queue(), ^{
+            CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+            if (ctx) CGLLockContext(ctx);
+            [self loadPresetsFromCurrentSource];
+            if (ctx) CGLUnlockContext(ctx);
+        });
     }
 
     // Resolution scale
