@@ -91,6 +91,9 @@ public:
     void on_playback_starting(play_control::t_track_command p_command, bool p_paused) override {
         (void)p_command;
         g_musicPlaybackActive.store(!p_paused, std::memory_order_relaxed);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+        });
     }
 
     void on_playback_new_track(metadb_handle_ptr p_track) override {
@@ -100,6 +103,9 @@ public:
     void on_playback_stop(play_control::t_stop_reason p_reason) override {
         (void)p_reason;
         g_musicPlaybackActive.store(false, std::memory_order_relaxed);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+        });
     }
 
     void on_playback_seek(double p_time) override {
@@ -108,6 +114,9 @@ public:
 
     void on_playback_pause(bool p_state) override {
         g_musicPlaybackActive.store(!p_state, std::memory_order_relaxed);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+        });
     }
 
     void on_playback_edited(metadb_handle_ptr p_track) override {

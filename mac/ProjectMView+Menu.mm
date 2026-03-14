@@ -455,6 +455,9 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
 
         _isVisualizationPaused = !_isVisualizationPaused;
         nowPaused = _isVisualizationPaused;
+        if (!_isVisualizationPaused) {
+            _isAutoPaused = NO;
+        }
 
         if (!nowPaused) {
             _lastRenderTimestamp = 0;
