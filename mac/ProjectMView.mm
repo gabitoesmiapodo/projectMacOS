@@ -49,6 +49,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 - (void)destroyProjectMState {
     if (_projectM) {
         [[self openGLContext] makeCurrentContext];
+        [self teardownHalfResFBO];
     }
 
     if (_playlist) {
@@ -255,6 +256,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _cachedIdleFps = PMValidatedIdleFps((int)cfg_idle_fps);
     _cachedMeshQuality = PMValidatedMeshQuality((int)cfg_mesh_quality);
     _cachedResolutionScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
+    if (_cachedResolutionScale == 0) {
+        [self setupHalfResFBO:width height:height];
+        projectm_set_window_size(_projectM, _halfResWidth, _halfResHeight);
+    }
     _lastSettingsGeneration = g_settingsGeneration.load(std::memory_order_relaxed);
     _lastCustomFolder = cfg_custom_presets_folder.get();
     _lastSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
@@ -425,10 +430,28 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
 
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (_cachedResolutionScale == 0 && _halfResFBO) {
+            // Half-resolution: render to FBO, then blit to screen
+            glBindFramebuffer(GL_FRAMEBUFFER, _halfResFBO);
+            glViewport(0, 0, _halfResWidth, _halfResHeight);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            projectm_opengl_render_frame(_projectM);
 
-        projectm_opengl_render_frame(_projectM);
+            // projectM may leave its own FBOs bound; rebind explicitly
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, _halfResFBO);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glViewport(0, 0, _cachedWidth, _cachedHeight);
+            glBlitFramebuffer(0, 0, _halfResWidth, _halfResHeight,
+                              0, 0, _cachedWidth, _cachedHeight,
+                              GL_COLOR_BUFFER_BIT, GL_LINEAR);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        } else {
+            // Standard or Retina: render directly
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            projectm_opengl_render_frame(_projectM);
+        }
 
         [[self openGLContext] flushBuffer];
 
@@ -586,17 +609,97 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAutoPaused = NO;
     }
 
-    // Resolution scale, FBO, and preset-related heavyweight changes are handled in Tasks 5-8.
+    // Resolution scale
+    int resScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
+    if (resScale != _cachedResolutionScale) {
+        int oldScale = _cachedResolutionScale;
+
+        if (resScale == 0) {
+            // Switching to Half: set up FBO (already on CVDisplayLink thread, CGL lock held)
+            _cachedResolutionScale = resScale;
+            [self setupHalfResFBO:_cachedWidth height:_cachedHeight];
+            projectm_set_window_size(_projectM, _halfResWidth, _halfResHeight);
+        } else if (oldScale == 0 && resScale != 0) {
+            // Switching from Half to Standard or Retina: tear down FBO first
+            [self teardownHalfResFBO];
+            _cachedResolutionScale = resScale;
+            // Standard <-> Retina requires main thread for wantsBestResolutionOpenGLSurface
+            if (resScale == 2 || oldScale == 2) {
+                BOOL wantsRetina = (resScale == 2);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self setWantsBestResolutionOpenGLSurface:wantsRetina];
+                    [[self openGLContext] update];
+                    int width = 0, height = 0;
+                    [self getDrawableSizeWidth:&width height:&height];
+                    CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+                    if (ctx) CGLLockContext(ctx);
+                    glViewport(0, 0, width, height);
+                    projectm_set_window_size(self->_projectM, width, height);
+                    self->_cachedWidth = width;
+                    self->_cachedHeight = height;
+                    if (ctx) CGLUnlockContext(ctx);
+                });
+            }
+        } else {
+            // Standard <-> Retina (no FBO involved)
+            _cachedResolutionScale = resScale;
+            BOOL wantsRetina = (resScale == 2);
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self setWantsBestResolutionOpenGLSurface:wantsRetina];
+                [[self openGLContext] update];
+                int width = 0, height = 0;
+                [self getDrawableSizeWidth:&width height:&height];
+                CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+                if (ctx) CGLLockContext(ctx);
+                glViewport(0, 0, width, height);
+                projectm_set_window_size(self->_projectM, width, height);
+                self->_cachedWidth = width;
+                self->_cachedHeight = height;
+                if (ctx) CGLUnlockContext(ctx);
+            });
+        }
+    }
 }
 
 - (void)setupHalfResFBO:(int)fullWidth height:(int)fullHeight {
-    (void)fullWidth;
-    (void)fullHeight;
-    // Implemented in Task 6
+    [self teardownHalfResFBO];
+
+    _halfResWidth = fullWidth / 2;
+    _halfResHeight = fullHeight / 2;
+    if (_halfResWidth < 64) _halfResWidth = 64;
+    if (_halfResHeight < 64) _halfResHeight = 64;
+
+    glGenFramebuffers(1, &_halfResFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, _halfResFBO);
+
+    glGenRenderbuffers(1, &_halfResColorRB);
+    glBindRenderbuffer(GL_RENDERBUFFER, _halfResColorRB);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, _halfResWidth, _halfResHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _halfResColorRB);
+
+    glGenRenderbuffers(1, &_halfResDepthRB);
+    glBindRenderbuffer(GL_RENDERBUFFER, _halfResDepthRB);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _halfResWidth, _halfResHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _halfResDepthRB);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        PMLogError("projectM: half-res FBO setup failed, status=",
+            [[NSString stringWithFormat:@"0x%X", status] UTF8String]);
+        [self teardownHalfResFBO];
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    PMLog("projectM: half-res FBO created ",
+        [[NSString stringWithFormat:@"%dx%d", _halfResWidth, _halfResHeight] UTF8String]);
 }
 
 - (void)teardownHalfResFBO {
-    // Implemented in Task 6
+    if (_halfResFBO) { glDeleteFramebuffers(1, &_halfResFBO); _halfResFBO = 0; }
+    if (_halfResColorRB) { glDeleteRenderbuffers(1, &_halfResColorRB); _halfResColorRB = 0; }
+    if (_halfResDepthRB) { glDeleteRenderbuffers(1, &_halfResDepthRB); _halfResDepthRB = 0; }
+    _halfResWidth = 0;
+    _halfResHeight = 0;
 }
 
 - (void)reshape {
@@ -617,10 +720,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     int height = 0;
     [self getDrawableSizeWidth:&width height:&height];
 
-    glViewport(0, 0, width, height);
-    projectm_set_window_size(_projectM, width, height);
     _cachedWidth = width;
     _cachedHeight = height;
+    if (_cachedResolutionScale == 0) {
+        [self setupHalfResFBO:width height:height];
+        glViewport(0, 0, _halfResWidth, _halfResHeight);
+        projectm_set_window_size(_projectM, _halfResWidth, _halfResHeight);
+    } else {
+        glViewport(0, 0, width, height);
+        projectm_set_window_size(_projectM, width, height);
+    }
     PMLog("projectM: viewport resized to ",
         [[NSString stringWithFormat:@"%dx%d", width, height] UTF8String]);
 
@@ -645,10 +754,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     [self getDrawableSizeWidth:&width height:&height];
 
     if (width != _cachedWidth || height != _cachedHeight) {
-        glViewport(0, 0, width, height);
-        projectm_set_window_size(_projectM, width, height);
         _cachedWidth = width;
         _cachedHeight = height;
+        if (_cachedResolutionScale == 0) {
+            [self setupHalfResFBO:width height:height];
+            glViewport(0, 0, _halfResWidth, _halfResHeight);
+            projectm_set_window_size(_projectM, _halfResWidth, _halfResHeight);
+        } else {
+            glViewport(0, 0, width, height);
+            projectm_set_window_size(_projectM, width, height);
+        }
         PMLog("projectM: backing changed, viewport resized to ",
             [[NSString stringWithFormat:@"%dx%d", width, height] UTF8String]);
     }
