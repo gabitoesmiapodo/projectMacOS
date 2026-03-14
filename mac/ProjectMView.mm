@@ -114,7 +114,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _halfResDepthRB = 0;
         _halfResWidth = 0;
         _halfResHeight = 0;
-        _cachedResolutionScale = 1;
+        _cachedResolutionScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
         _cachedFpsCap = 60;
         _cachedIdleFps = 30;
         _cachedMeshQuality = 1;
@@ -137,7 +137,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 - (void)prepareOpenGL {
     [super prepareOpenGL];
 
-    GLint swapInt = 1;
+    GLint swapInt = cfg_vsync ? 1 : 0;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLContextParameterSwapInterval];
 
     static_api_ptr_t<visualisation_manager> visManager;
@@ -517,6 +517,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
     projectm_set_aspect_correction(_projectM, (bool)cfg_aspect_correction);
     projectm_set_easter_egg(_projectM, PMDurationRandomizationFloatValue((int)cfg_duration_randomization));
+    projectm_set_preset_duration(_projectM, (double)PMValidatedPresetDuration((int)cfg_preset_duration));
 
     int fpsCap = PMValidatedFpsCap((int)cfg_fps_cap);
     projectm_set_fps(_projectM, fpsCap > 0 ? fpsCap : 60);
