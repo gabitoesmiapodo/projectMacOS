@@ -12,17 +12,12 @@
 
 namespace {
 
-static uint64_t frameDurationInMachTicks(bool idle) {
-    static uint64_t duration60 = 0;
-    static uint64_t duration30 = 0;
-    if (duration60 == 0) {
-        mach_timebase_info_data_t info;
-        mach_timebase_info(&info);
-        double nsPerTick = (double)info.numer / info.denom;
-        duration60 = (uint64_t)((1e9 / 60.0) / nsPerTick);
-        duration30 = (uint64_t)((1e9 / 30.0) / nsPerTick);
-    }
-    return idle ? duration30 : duration60;
+static uint64_t frameDurationInMachTicks(int fpsCap) {
+    if (fpsCap <= 0) return 0;  // Unlimited
+    static mach_timebase_info_data_t info = {0, 0};
+    if (info.denom == 0) mach_timebase_info(&info);
+    double nsPerTick = (double)info.numer / info.denom;
+    return (uint64_t)((1e9 / (double)fpsCap) / nsPerTick);
 }
 
 } // anonymous namespace
@@ -81,7 +76,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     NSOpenGLPixelFormat *pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
     self = [super initWithFrame:frame pixelFormat:pixelFormat];
     if (self) {
-        [self setWantsBestResolutionOpenGLSurface:NO];
+        [self setWantsBestResolutionOpenGLSurface:(PMValidatedResolutionScale((int)cfg_resolution_scale) == 2)];
         _projectM = NULL;
         _playlist = NULL;
         _displayLink = NULL;
@@ -112,6 +107,18 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _cachedHeight = 0;
         _fpsCounterStart = 0;
         _fpsFrameCount = 0;
+        _isAutoPaused = NO;
+        _lastSettingsGeneration = 0;
+        _halfResFBO = 0;
+        _halfResColorRB = 0;
+        _halfResDepthRB = 0;
+        _halfResWidth = 0;
+        _halfResHeight = 0;
+        _cachedResolutionScale = 1;
+        _cachedFpsCap = 60;
+        _cachedIdleFps = 30;
+        _cachedMeshQuality = 1;
+        _lastSortOrder = 0;
     }
     return self;
 }
@@ -225,15 +232,27 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     projectm_set_window_size(_projectM, width, height);
     _cachedWidth = width;
     _cachedHeight = height;
-    projectm_set_mesh_size(_projectM, 128, (size_t)(128 * heightWidthRatio));
-    projectm_set_fps(_projectM, 60);
-    projectm_set_soft_cut_duration(_projectM, 3.0);
+    int meshSize = PMMeshSizeForQuality(PMValidatedMeshQuality((int)cfg_mesh_quality));
+    projectm_set_mesh_size(_projectM, meshSize, (size_t)(meshSize * heightWidthRatio));
+    int fpsCap = PMValidatedFpsCap((int)cfg_fps_cap);
+    projectm_set_fps(_projectM, fpsCap > 0 ? fpsCap : 60);
+    projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
     projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
-    projectm_set_hard_cut_enabled(_projectM, PMUseHardCutTransitions());
-    projectm_set_hard_cut_duration(_projectM, 20.0);
-    projectm_set_hard_cut_sensitivity(_projectM, 1.0f);
-    projectm_set_beat_sensitivity(_projectM, 1.0f);
-    projectm_set_aspect_correction(_projectM, true);
+    projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
+    projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
+    projectm_set_hard_cut_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_hard_cut_sensitivity));
+    projectm_set_beat_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_beat_sensitivity));
+    projectm_set_aspect_correction(_projectM, (bool)cfg_aspect_correction);
+    projectm_set_easter_egg(_projectM, PMDurationRandomizationFloatValue((int)cfg_duration_randomization));
+
+    _cachedFpsCap = fpsCap;
+    _cachedIdleFps = PMValidatedIdleFps((int)cfg_idle_fps);
+    _cachedMeshQuality = PMValidatedMeshQuality((int)cfg_mesh_quality);
+    _cachedResolutionScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
+    _lastSettingsGeneration = g_settingsGeneration.load(std::memory_order_relaxed);
+    _lastCustomFolder = cfg_custom_presets_folder.get();
+    _lastSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+    _lastFilter = cfg_preset_filter.get();
 
     _playlist = projectm_playlist_create(_projectM);
     if (!_playlist) {
@@ -305,7 +324,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         [[self openGLContext] makeCurrentContext];
 
         uint64_t now_mach = mach_absolute_time();
-        if (now_mach - _lastRenderTimestamp < frameDurationInMachTicks(!_isAudioPlaybackActive)) {
+        int effectiveFps = _isAudioPlaybackActive ? _cachedFpsCap : _cachedIdleFps;
+        uint64_t minDuration = frameDurationInMachTicks(effectiveFps);
+        if (minDuration > 0 && now_mach - _lastRenderTimestamp < minDuration) {
             CGLUnlockContext(cglContext);
             contextLocked = NO;
             return;
@@ -324,6 +345,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             }
             _fpsCounterStart = now_mach;
             _fpsFrameCount = 0;
+        }
+
+        uint32_t gen = g_settingsGeneration.load(std::memory_order_relaxed);
+        if (gen != _lastSettingsGeneration) {
+            [self applySettingsFromPreferences];
+            _lastSettingsGeneration = gen;
         }
 
         [self addPCM];
@@ -477,6 +504,63 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     @catch (NSException *exception) {
         PMLogError("projectM: Objective-C exception in addPCM: ", [[exception description] UTF8String]);
     }
+}
+
+- (void)applySettingsFromPreferences {
+    if (!_projectM) return;
+
+    // Immediate projectM API calls (cheap, safe to call even if unchanged)
+    projectm_set_beat_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_beat_sensitivity));
+    projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
+    projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
+    projectm_set_hard_cut_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_hard_cut_sensitivity));
+    projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
+    projectm_set_aspect_correction(_projectM, (bool)cfg_aspect_correction);
+    projectm_set_easter_egg(_projectM, PMDurationRandomizationFloatValue((int)cfg_duration_randomization));
+
+    int fpsCap = PMValidatedFpsCap((int)cfg_fps_cap);
+    projectm_set_fps(_projectM, fpsCap > 0 ? fpsCap : 60);
+    _cachedFpsCap = fpsCap;
+    _cachedIdleFps = PMValidatedIdleFps((int)cfg_idle_fps);
+
+    // Vsync (called from renderFrame which already holds the CGL lock)
+    GLint swapInt = cfg_vsync ? 1 : 0;
+    [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLContextParameterSwapInterval];
+
+    // Mesh quality (only if changed -- causes reallocation)
+    int meshQuality = PMValidatedMeshQuality((int)cfg_mesh_quality);
+    if (meshQuality != _cachedMeshQuality) {
+        float heightWidthRatio = (_cachedHeight > 0 && _cachedWidth > 0) ? (float)_cachedHeight / (float)_cachedWidth : 1.0f;
+        int meshSize = PMMeshSizeForQuality(meshQuality);
+        projectm_set_mesh_size(_projectM, meshSize, (size_t)(meshSize * heightWidthRatio));
+        _cachedMeshQuality = meshQuality;
+    }
+
+    // Retry count
+    if (_playlist) {
+        projectm_playlist_set_retry_count(_playlist, PMValidatedRetryCount((int)cfg_preset_retry_count));
+    }
+
+    // Auto-pause evaluation
+    if (cfg_auto_pause && !_isAudioPlaybackActive && !_isVisualizationPaused && !_isAutoPaused) {
+        _isAutoPaused = YES;
+        // Note: don't stop CVDisplayLink here -- we're inside renderFrame on the CVDisplayLink thread.
+        // The auto-pause logic in renderFrame handles the actual stop.
+    } else if ((!cfg_auto_pause || _isAudioPlaybackActive) && _isAutoPaused) {
+        _isAutoPaused = NO;
+    }
+
+    // Resolution scale, FBO, and preset-related heavyweight changes are handled in Tasks 5-8.
+}
+
+- (void)setupHalfResFBO:(int)fullWidth height:(int)fullHeight {
+    (void)fullWidth;
+    (void)fullHeight;
+    // Implemented in Task 6
+}
+
+- (void)teardownHalfResFBO {
+    // Implemented in Task 6
 }
 
 - (void)reshape {
