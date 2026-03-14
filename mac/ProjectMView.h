@@ -39,6 +39,8 @@ extern cfg_int cfg_preset_retry_count;
 extern std::atomic<uint32_t> g_settingsGeneration;
 void PMSettingsDidChange(void);
 
+extern NSString * const PMPlaybackStateChangedNotification;
+
 #define PMLog(...)      do { if (cfg_debug_logging) FB2K_console_print(__VA_ARGS__); } while(0)
 #define PMLogError(...) FB2K_console_print(__VA_ARGS__)
 

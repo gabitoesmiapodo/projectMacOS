@@ -92,7 +92,7 @@ public:
         (void)p_command;
         g_musicPlaybackActive.store(!p_paused, std::memory_order_relaxed);
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+            [[NSNotificationCenter defaultCenter] postNotificationName:PMPlaybackStateChangedNotification object:nil];
         });
     }
 
@@ -104,7 +104,7 @@ public:
         (void)p_reason;
         g_musicPlaybackActive.store(false, std::memory_order_relaxed);
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+            [[NSNotificationCenter defaultCenter] postNotificationName:PMPlaybackStateChangedNotification object:nil];
         });
     }
 
@@ -115,7 +115,7 @@ public:
     void on_playback_pause(bool p_state) override {
         g_musicPlaybackActive.store(!p_state, std::memory_order_relaxed);
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"PMPlaybackStateChanged" object:nil];
+            [[NSNotificationCenter defaultCenter] postNotificationName:PMPlaybackStateChangedNotification object:nil];
         });
     }
 
@@ -157,6 +157,8 @@ void PMSyncMusicPlaybackState(void) {
 void PMSettingsDidChange(void) {
     g_settingsGeneration.fetch_add(1, std::memory_order_relaxed);
 }
+
+NSString * const PMPlaybackStateChangedNotification = PMPlaybackStateChangedNotification;
 
 // MARK: - View Controller
 
