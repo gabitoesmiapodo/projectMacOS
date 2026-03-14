@@ -124,6 +124,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 }
 
 - (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self destroyDisplayLink];
     [self cleanupHelpWindow];
 
@@ -178,6 +179,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         PMLogError("projectM: CVDisplayLinkStart() failed.");
         [self destroyDisplayLink];
     }
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handlePlaybackStateChange:)
+                                                 name:@"PMPlaybackStateChanged"
+                                               object:nil];
 }
 
 - (void)createProjectM:(int)width height:(int)height {
@@ -428,6 +434,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         CGLUnlockContext(cglContext);
         contextLocked = NO;
+
+        // Auto-pause: stop display link after releasing CGL lock
+        if (_isAutoPaused && _displayLink && CVDisplayLinkIsRunning(_displayLink)) {
+            CVDisplayLinkStop(_displayLink);
+            PMLog("projectM: auto-paused (no audio playback)");
+        }
     }
     @catch (NSException *exception) {
         _projectMInitialized = NO;
@@ -455,6 +467,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
                 _pendingShuffleEnable = NO;
                 _shuffleEnableDeadline = 0.0;
             }
+            // Auto-pause: mark for CVDisplayLink stop (actual stop happens after CGL unlock in renderFrame)
+            if (cfg_auto_pause && !_isAudioPlaybackActive && !_isVisualizationPaused) {
+                _isAutoPaused = YES;
+            }
+            // Note: auto-pause resume is handled by NSNotification (handlePlaybackStateChange:)
+            // because once CVDisplayLink is stopped, addPCM is never called.
         }
 
         double time;
@@ -503,6 +521,23 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
     @catch (NSException *exception) {
         PMLogError("projectM: Objective-C exception in addPCM: ", [[exception description] UTF8String]);
+    }
+}
+
+- (void)handlePlaybackStateChange:(NSNotification *)notification {
+    if (!_isAutoPaused) return;
+    if (!PMIsMusicPlaybackActive()) return;
+
+    _isAutoPaused = NO;
+    _lastRenderTimestamp = 0;
+
+    if (_displayLink && !CVDisplayLinkIsRunning(_displayLink)) {
+        CVReturn status = CVDisplayLinkStart(_displayLink);
+        if (status != kCVReturnSuccess) {
+            PMLogError("projectM: CVDisplayLinkStart() failed on auto-unpause.");
+        } else {
+            PMLog("projectM: auto-unpaused (playback resumed)");
+        }
     }
 }
 

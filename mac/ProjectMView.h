@@ -198,4 +198,6 @@ extern const void *kPresetMenuPathKey;
 - (void)rebuildResolvedCyclePaths;
 /// Disable shuffle and cycle favorites (called on any manual preset selection).
 - (void)disableAutoplay;
+/// Handle playback state changes for auto-pause.
+- (void)handlePlaybackStateChange:(NSNotification *)notification;
 @end
