@@ -336,3 +336,100 @@ PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue) {
         default:                             return PMCycleFavoritesModeOff;
     }
 }
+
+float PMSensitivityFloatValue(int level) {
+    switch (level) {
+        case 0: return 0.5f;
+        case 1: return 1.0f;
+        case 2: return 1.5f;
+        case 3: return 2.0f;
+        default: return 1.0f;
+    }
+}
+
+float PMDurationRandomizationFloatValue(int level) {
+    switch (level) {
+        case 0: return 0.001f;
+        case 1: return 0.25f;
+        case 2: return 0.5f;
+        case 3: return 1.0f;
+        default: return 0.001f;
+    }
+}
+
+int PMMeshSizeForQuality(int quality) {
+    switch (quality) {
+        case 0: return 64;
+        case 1: return 128;
+        case 2: return 192;
+        default: return 128;
+    }
+}
+
+int PMValidatedHardCutInterval(int requested) {
+    static const int valid[] = {5, 10, 20, 30};
+    for (int i = 0; i < 4; i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 20;
+}
+
+int PMValidatedSoftCutDuration(int requested) {
+    static const int valid[] = {1, 2, 3, 5};
+    for (int i = 0; i < 4; i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 3;
+}
+
+int PMValidatedFpsCap(int requested) {
+    static const int valid[] = {0, 30, 45, 60, 90, 120};
+    for (int i = 0; i < 6; i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 60;
+}
+
+int PMValidatedIdleFps(int requested) {
+    static const int valid[] = {15, 30};
+    for (int i = 0; i < 2; i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 30;
+}
+
+int PMValidatedResolutionScale(int requested) {
+    if (requested >= 0 && requested <= 2) return requested;
+    return 1;
+}
+
+int PMValidatedMeshQuality(int requested) {
+    if (requested >= 0 && requested <= 2) return requested;
+    return 1;
+}
+
+int PMValidatedPresetSortOrder(int requested) {
+    if (requested >= 0 && requested <= 3) return requested;
+    return 0;
+}
+
+int PMValidatedRetryCount(int requested) {
+    static const int valid[] = {1, 3, 5, 10};
+    for (int i = 0; i < 4; i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 3;
+}
+
+NSArray<NSString *> *PMParsePresetFilter(NSString *filterString) {
+    if (filterString.length == 0) return @[];
+    NSArray<NSString *> *components = [filterString componentsSeparatedByString:@","];
+    NSMutableArray<NSString *> *result = [NSMutableArray array];
+    for (NSString *component in components) {
+        NSString *trimmed = [component stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (trimmed.length > 0) {
+            [result addObject:trimmed];
+        }
+    }
+    return [result copy];
+}
