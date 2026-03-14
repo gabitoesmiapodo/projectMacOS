@@ -1,8 +1,17 @@
 #pragma once
 #import <Cocoa/Cocoa.h>
 
-// NOTE: This header must be included after stdafx.h, which defines the GUID type
-// from the foobar2000 SDK. All .mm files in this project include stdafx.h first.
+// GUID is defined in pfc/pfc-lite.h (foobar2000 SDK). Mirror the definition here
+// under the same guard so this header is self-contained for IDE analysis.
+#ifndef GUID_DEFINED
+#define GUID_DEFINED
+struct GUID {
+    uint32_t Data1;
+    uint16_t Data2;
+    uint16_t Data3;
+    uint8_t  Data4[8];
+} __attribute__((packed));
+#endif
 
 // kPrefsParentGUID: GUID for the "projectMacOS" parent preferences_page node.
 // All five section pages return this from get_parent_guid().
