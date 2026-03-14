@@ -610,6 +610,22 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAutoPaused = NO;
     }
 
+    // Heavyweight updates: custom folder, sort, filter require playlist reload
+    // Detected by comparing current cfg values with cached ivars.
+    auto currentFolder = cfg_custom_presets_folder.get();
+    int currentSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+    auto currentFilter = cfg_preset_filter.get();
+
+    if (strcmp(currentFolder.get_ptr(), _lastCustomFolder.get_ptr()) != 0 ||
+        currentSortOrder != _lastSortOrder ||
+        strcmp(currentFilter.get_ptr(), _lastFilter.get_ptr()) != 0) {
+        _lastCustomFolder = currentFolder;
+        _lastSortOrder = currentSortOrder;
+        _lastFilter = currentFilter;
+        PMLog("projectM: reloading presets due to settings change");
+        [self loadPresetsFromCurrentSource];
+    }
+
     // Resolution scale
     int resScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
     if (resScale != _cachedResolutionScale) {
