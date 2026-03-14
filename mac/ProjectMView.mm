@@ -81,6 +81,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     NSOpenGLPixelFormat *pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
     self = [super initWithFrame:frame pixelFormat:pixelFormat];
     if (self) {
+        [self setWantsBestResolutionOpenGLSurface:NO];
         _projectM = NULL;
         _playlist = NULL;
         _displayLink = NULL;
@@ -325,16 +326,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             _fpsFrameCount = 0;
         }
 
-        int width = 0;
-        int height = 0;
-        [self getDrawableSizeWidth:&width height:&height];
-        if (width != _cachedWidth || height != _cachedHeight) {
-            glViewport(0, 0, width, height);
-            projectm_set_window_size(_projectM, width, height);
-            _cachedWidth = width;
-            _cachedHeight = height;
-        }
-
         [self addPCM];
 
         double now = CFAbsoluteTimeGetCurrent();
@@ -514,6 +505,40 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         [[NSString stringWithFormat:@"%dx%d", width, height] UTF8String]);
 
     CGLUnlockContext(cglContext);
+}
+
+- (void)viewDidChangeBackingProperties {
+    [super viewDidChangeBackingProperties];
+    if (!_projectMInitialized || !_projectM)
+        return;
+
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (!cglContext)
+        return;
+
+    CGLLockContext(cglContext);
+    [[self openGLContext] update];
+    [[self openGLContext] makeCurrentContext];
+
+    int width = 0;
+    int height = 0;
+    [self getDrawableSizeWidth:&width height:&height];
+
+    if (width != _cachedWidth || height != _cachedHeight) {
+        glViewport(0, 0, width, height);
+        projectm_set_window_size(_projectM, width, height);
+        _cachedWidth = width;
+        _cachedHeight = height;
+        PMLog("projectM: backing changed, viewport resized to ",
+            [[NSString stringWithFormat:@"%dx%d", width, height] UTF8String]);
+    }
+
+    CGLUnlockContext(cglContext);
+
+    if (_displayLink) {
+        CGLPixelFormatObj cglPixelFormat = [[self pixelFormat] CGLPixelFormatObj];
+        CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(_displayLink, cglContext, cglPixelFormat);
+    }
 }
 
 - (void)getDrawableSizeWidth:(int *)width height:(int *)height {
