@@ -87,7 +87,7 @@
 
 namespace {
 
-class preferences_page_visualization : public preferences_page {
+class preferences_page_visualization : public preferences_page_v2 {
 public:
     service_ptr instantiate() override {
         return fb2k::wrapNSObject([ProjectMPrefsVisualizationViewController new]);

@@ -6,7 +6,7 @@ const GUID kPrefsParentGUID = { 0x2f8a5e17, 0x3c94, 0x4b61, { 0xa7, 0xd2, 0xe1, 
 
 namespace {
 
-class preferences_page_projectMacOS : public preferences_page {
+class preferences_page_projectMacOS : public preferences_page_v2 {
 public:
     service_ptr instantiate() override {
         NSViewController *vc = [[NSViewController alloc] init];
