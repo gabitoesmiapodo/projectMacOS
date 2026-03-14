@@ -129,3 +129,39 @@ FOUNDATION_EXPORT BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCou
 /// Return a valid PMCycleFavoritesMode for the raw int stored in cfg_cycle_favorites_mode.
 /// Returns PMCycleFavoritesModeOff for any unrecognized value.
 FOUNDATION_EXPORT PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue);
+
+/// Map sensitivity cfg_int (0-3) to float value: 0->0.5, 1->1.0, 2->1.5, 3->2.0.
+FOUNDATION_EXPORT float PMSensitivityFloatValue(int level);
+
+/// Map duration randomization cfg_int (0-3) to float: 0->0.001, 1->0.25, 2->0.5, 3->1.0.
+FOUNDATION_EXPORT float PMDurationRandomizationFloatValue(int level);
+
+/// Map mesh quality cfg_int (0-2) to mesh size: 0->64, 1->128, 2->192.
+FOUNDATION_EXPORT int PMMeshSizeForQuality(int quality);
+
+/// Map hard cut interval cfg_int to seconds. Valid: 5, 10, 20, 30. Default: 20.
+FOUNDATION_EXPORT int PMValidatedHardCutInterval(int requested);
+
+/// Map soft cut duration cfg_int to seconds. Valid: 1, 2, 3, 5. Default: 3.
+FOUNDATION_EXPORT int PMValidatedSoftCutDuration(int requested);
+
+/// Map FPS cap cfg_int. Valid: 0, 30, 45, 60, 90, 120. Default: 60.
+FOUNDATION_EXPORT int PMValidatedFpsCap(int requested);
+
+/// Map idle FPS cfg_int. Valid: 15, 30. Default: 30.
+FOUNDATION_EXPORT int PMValidatedIdleFps(int requested);
+
+/// Map resolution scale cfg_int. Valid: 0, 1, 2. Default: 1.
+FOUNDATION_EXPORT int PMValidatedResolutionScale(int requested);
+
+/// Map mesh quality cfg_int. Valid: 0, 1, 2. Default: 1.
+FOUNDATION_EXPORT int PMValidatedMeshQuality(int requested);
+
+/// Map preset sort order cfg_int. Valid: 0-3. Default: 0.
+FOUNDATION_EXPORT int PMValidatedPresetSortOrder(int requested);
+
+/// Map retry count cfg_int. Valid: 1, 3, 5, 10. Default: 3.
+FOUNDATION_EXPORT int PMValidatedRetryCount(int requested);
+
+/// Parse comma-separated filter string into array of trimmed non-empty strings.
+FOUNDATION_EXPORT NSArray<NSString *> *PMParsePresetFilter(NSString *filterString);
