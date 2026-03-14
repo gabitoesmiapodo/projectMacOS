@@ -258,6 +258,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _cachedResolutionScale = PMValidatedResolutionScale((int)cfg_resolution_scale);
     if (_cachedResolutionScale == 0) {
         [self setupHalfResFBO:width height:height];
+        glViewport(0, 0, _halfResWidth, _halfResHeight);
         projectm_set_window_size(_projectM, _halfResWidth, _halfResHeight);
     }
     _lastSettingsGeneration = g_settingsGeneration.load(std::memory_order_relaxed);
@@ -623,11 +624,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             // Switching from Half to Standard or Retina: tear down FBO first
             [self teardownHalfResFBO];
             _cachedResolutionScale = resScale;
-            // Standard <-> Retina requires main thread for wantsBestResolutionOpenGLSurface
-            if (resScale == 2 || oldScale == 2) {
-                BOOL wantsRetina = (resScale == 2);
+            if (resScale == 2) {
+                // Half -> Retina: toggle wantsBestResolutionOpenGLSurface on main thread
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [self setWantsBestResolutionOpenGLSurface:wantsRetina];
+                    [self setWantsBestResolutionOpenGLSurface:YES];
                     [[self openGLContext] update];
                     int width = 0, height = 0;
                     [self getDrawableSizeWidth:&width height:&height];
@@ -639,6 +639,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
                     self->_cachedHeight = height;
                     if (ctx) CGLUnlockContext(ctx);
                 });
+            } else {
+                // Half -> Standard (1x): restore full viewport immediately (CGL lock held)
+                glViewport(0, 0, _cachedWidth, _cachedHeight);
+                projectm_set_window_size(_projectM, _cachedWidth, _cachedHeight);
             }
         } else {
             // Standard <-> Retina (no FBO involved)
@@ -687,6 +691,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         PMLogError("projectM: half-res FBO setup failed, status=",
             [[NSString stringWithFormat:@"0x%X", status] UTF8String]);
         [self teardownHalfResFBO];
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        return;
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
