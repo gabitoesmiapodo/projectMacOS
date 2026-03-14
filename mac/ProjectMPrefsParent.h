@@ -1,4 +1,8 @@
 #pragma once
+#import <Cocoa/Cocoa.h>
+
+// NOTE: This header must be included after stdafx.h, which defines the GUID type
+// from the foobar2000 SDK. All .mm files in this project include stdafx.h first.
 
 // kPrefsParentGUID: GUID for the "projectMacOS" parent preferences_page node.
 // All five section pages return this from get_parent_guid().
