@@ -2,7 +2,6 @@
 #import "ProjectMView.h"
 #import "ProjectMMenuLogic.h"
 
-#import <atomic>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -186,7 +185,6 @@
     _customPresetsFolderField = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 180, 22)];
     _customPresetsFolderField.stringValue = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.placeholderString = @"Default (built-in collection)";
-    _customPresetsFolderField.delegate = (id<NSTextFieldDelegate>)self;
     _customPresetsFolderField.target = self;
     _customPresetsFolderField.action = @selector(customPresetsFolderChanged:);
     NSButton *browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
