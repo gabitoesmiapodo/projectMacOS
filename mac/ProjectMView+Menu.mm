@@ -174,15 +174,64 @@
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    if (self->_isVisualizationPaused) {
+    if (self->_isVisualizationPaused || self->_isAutoPaused) {
         [self togglePausePlayback:nil];
         return;
     }
 
     if (event.clickCount == 2) {
         [self toggleVisualizationFullScreen];
+        return;
     }
+
+    if (cfg_mouse_interaction && _projectM) {
+        NSPoint viewPoint = [self convertPoint:event.locationInWindow fromView:nil];
+        NSPoint pixelPoint = [self convertPointToBacking:viewPoint];
+        // Scale coordinates to projectM's window size (differs from backing in half-res mode)
+        float touchX = (float)pixelPoint.x;
+        float touchY = (float)pixelPoint.y;
+        if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
+            touchX *= (float)_halfResWidth / (float)_cachedWidth;
+            touchY *= (float)_halfResHeight / (float)_cachedHeight;
+        }
+        projectm_touch(_projectM, touchX, touchY, 1,
+                        (projectm_touch_type)(int)cfg_mouse_effect);
+        return;
+    }
+
     [super mouseDown:event];
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    if (!cfg_mouse_interaction || !_projectM) {
+        [super mouseDragged:event];
+        return;
+    }
+    NSPoint viewPoint = [self convertPoint:event.locationInWindow fromView:nil];
+    NSPoint pixelPoint = [self convertPointToBacking:viewPoint];
+    float touchX = (float)pixelPoint.x;
+    float touchY = (float)pixelPoint.y;
+    if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
+        touchX *= (float)_halfResWidth / (float)_cachedWidth;
+        touchY *= (float)_halfResHeight / (float)_cachedHeight;
+    }
+    projectm_touch_drag(_projectM, touchX, touchY, 1);
+}
+
+- (void)mouseUp:(NSEvent *)event {
+    if (!cfg_mouse_interaction || !_projectM) {
+        [super mouseUp:event];
+        return;
+    }
+    NSPoint viewPoint = [self convertPoint:event.locationInWindow fromView:nil];
+    NSPoint pixelPoint = [self convertPointToBacking:viewPoint];
+    float touchX = (float)pixelPoint.x;
+    float touchY = (float)pixelPoint.y;
+    if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
+        touchX *= (float)_halfResWidth / (float)_cachedWidth;
+        touchY *= (float)_halfResHeight / (float)_cachedHeight;
+    }
+    projectm_touch_destroy(_projectM, touchX, touchY);
 }
 
 - (void)keyDown:(NSEvent *)event {
