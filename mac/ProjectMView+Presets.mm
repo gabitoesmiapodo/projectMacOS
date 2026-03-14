@@ -237,8 +237,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         [candidatePaths addObject:path];
     }
 
-    [candidatePaths sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-
     uint32_t added = 0;
     for (NSString *candidatePath in candidatePaths) {
         bool fileAdded = false;
@@ -451,6 +449,27 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 - (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip {
     if (usedZip) *usedZip = NO;
 
+    // Check custom presets folder first
+    auto customFolder = cfg_custom_presets_folder.get();
+    NSString *customPath = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
+    if (customPath.length > 0) {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        BOOL isDir = NO;
+        if ([fm fileExistsAtPath:customPath isDirectory:&isDir] && isDir) {
+            // Verify it has at least one .milk file
+            NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:customPath];
+            for (NSString *entry in enumerator) {
+                if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+                    PMLog("projectM: using custom presets folder: ", [customPath UTF8String]);
+                    return [customPath stringByStandardizingPath];
+                }
+            }
+            PMLogError("projectM: custom presets folder contains no .milk files: ", [customPath UTF8String]);
+        } else {
+            PMLogError("projectM: custom presets folder not found: ", [customPath UTF8String]);
+        }
+    }
+
     NSString *zipPath = [self projectMacOSZipPath];
     NSString *extractedPath = [self prepareDataDirectoryFromZipAtPath:zipPath];
     if (extractedPath.length > 0) {
@@ -570,9 +589,37 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 }
             }
 
-            projectm_playlist_set_retry_count(_playlist, 0);
+            projectm_playlist_set_retry_count(_playlist, PMValidatedRetryCount((int)cfg_preset_retry_count));
             projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
             projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
+
+            // Apply sort order
+            int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+            projectm_playlist_sort_predicate sortPredicate = (sortOrder <= 1)
+                ? SORT_PREDICATE_FILENAME_ONLY
+                : SORT_PREDICATE_FULL_PATH;
+            projectm_playlist_sort_order sortDirection = (sortOrder == 0 || sortOrder == 2)
+                ? SORT_ORDER_ASCENDING
+                : SORT_ORDER_DESCENDING;
+            projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), sortPredicate, sortDirection);
+
+            // Apply filter
+            NSArray<NSString *> *filterPatterns = PMParsePresetFilter(@(cfg_preset_filter.get().get_ptr()));
+            if (filterPatterns.count > 0) {
+                NSMutableArray<NSData *> *cStrings = [NSMutableArray array];
+                const char **patterns = (const char **)malloc(sizeof(const char *) * filterPatterns.count);
+                for (NSUInteger i = 0; i < filterPatterns.count; i++) {
+                    NSData *utf8 = [filterPatterns[i] dataUsingEncoding:NSUTF8StringEncoding];
+                    [cStrings addObject:utf8];
+                    patterns[i] = (const char *)utf8.bytes;
+                }
+                projectm_playlist_set_filter(_playlist, patterns, (size_t)filterPatterns.count);
+                projectm_playlist_apply_filter(_playlist);
+                free(patterns);
+            } else {
+                projectm_playlist_set_filter(_playlist, NULL, 0);
+                projectm_playlist_apply_filter(_playlist);
+            }
 
             uint32_t totalPresets = projectm_playlist_size(_playlist);
             int presetIndex = -1;
