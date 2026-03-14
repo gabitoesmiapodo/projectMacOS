@@ -368,7 +368,7 @@ int PMMeshSizeForQuality(int quality) {
 
 int PMValidatedHardCutInterval(int requested) {
     static const int valid[] = {5, 10, 20, 30};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
         if (valid[i] == requested) return requested;
     }
     return 20;
@@ -376,7 +376,7 @@ int PMValidatedHardCutInterval(int requested) {
 
 int PMValidatedSoftCutDuration(int requested) {
     static const int valid[] = {1, 2, 3, 5};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
         if (valid[i] == requested) return requested;
     }
     return 3;
@@ -384,7 +384,7 @@ int PMValidatedSoftCutDuration(int requested) {
 
 int PMValidatedFpsCap(int requested) {
     static const int valid[] = {0, 30, 45, 60, 90, 120};
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
         if (valid[i] == requested) return requested;
     }
     return 60;
@@ -392,7 +392,7 @@ int PMValidatedFpsCap(int requested) {
 
 int PMValidatedIdleFps(int requested) {
     static const int valid[] = {15, 30};
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
         if (valid[i] == requested) return requested;
     }
     return 30;
@@ -415,7 +415,7 @@ int PMValidatedPresetSortOrder(int requested) {
 
 int PMValidatedRetryCount(int requested) {
     static const int valid[] = {1, 3, 5, 10};
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
         if (valid[i] == requested) return requested;
     }
     return 3;
