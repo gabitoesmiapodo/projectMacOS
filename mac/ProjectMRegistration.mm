@@ -158,7 +158,7 @@ void PMSettingsDidChange(void) {
     g_settingsGeneration.fetch_add(1, std::memory_order_relaxed);
 }
 
-NSString * const PMPlaybackStateChangedNotification = PMPlaybackStateChangedNotification;
+NSString * const PMPlaybackStateChangedNotification = @"PMPlaybackStateChanged";
 
 // MARK: - View Controller
 
