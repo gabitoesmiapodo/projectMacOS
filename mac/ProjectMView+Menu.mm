@@ -190,12 +190,21 @@
         // Scale coordinates to projectM's window size (differs from backing in half-res mode)
         float touchX = (float)pixelPoint.x;
         float touchY = (float)pixelPoint.y;
+        int effectiveHeight;
         if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
             touchX *= (float)_halfResWidth / (float)_cachedWidth;
             touchY *= (float)_halfResHeight / (float)_cachedHeight;
+            effectiveHeight = _halfResHeight;
+        } else {
+            effectiveHeight = _cachedHeight;
         }
+        // projectM uses top-left origin; NSView backing uses bottom-left
+        touchY = (float)effectiveHeight - touchY;
+        CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+        if (cglContext) CGLLockContext(cglContext);
         projectm_touch(_projectM, touchX, touchY, 1,
                         (projectm_touch_type)(int)cfg_mouse_effect);
+        if (cglContext) CGLUnlockContext(cglContext);
         return;
     }
 
@@ -211,11 +220,19 @@
     NSPoint pixelPoint = [self convertPointToBacking:viewPoint];
     float touchX = (float)pixelPoint.x;
     float touchY = (float)pixelPoint.y;
+    int effectiveHeight;
     if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
         touchX *= (float)_halfResWidth / (float)_cachedWidth;
         touchY *= (float)_halfResHeight / (float)_cachedHeight;
+        effectiveHeight = _halfResHeight;
+    } else {
+        effectiveHeight = _cachedHeight;
     }
+    touchY = (float)effectiveHeight - touchY;
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (cglContext) CGLLockContext(cglContext);
     projectm_touch_drag(_projectM, touchX, touchY, 1);
+    if (cglContext) CGLUnlockContext(cglContext);
 }
 
 - (void)mouseUp:(NSEvent *)event {
@@ -227,11 +244,19 @@
     NSPoint pixelPoint = [self convertPointToBacking:viewPoint];
     float touchX = (float)pixelPoint.x;
     float touchY = (float)pixelPoint.y;
+    int effectiveHeight;
     if (_cachedResolutionScale == 0 && _cachedWidth > 0 && _halfResWidth > 0) {
         touchX *= (float)_halfResWidth / (float)_cachedWidth;
         touchY *= (float)_halfResHeight / (float)_cachedHeight;
+        effectiveHeight = _halfResHeight;
+    } else {
+        effectiveHeight = _cachedHeight;
     }
+    touchY = (float)effectiveHeight - touchY;
+    CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
+    if (cglContext) CGLLockContext(cglContext);
     projectm_touch_destroy(_projectM, touchX, touchY);
+    if (cglContext) CGLUnlockContext(cglContext);
 }
 
 - (void)keyDown:(NSEvent *)event {
