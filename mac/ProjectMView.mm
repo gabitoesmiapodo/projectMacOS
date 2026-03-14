@@ -182,7 +182,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handlePlaybackStateChange:)
-                                                 name:@"PMPlaybackStateChanged"
+                                                 name:PMPlaybackStateChangedNotification
                                                object:nil];
 }
 
