@@ -27,6 +27,19 @@
     if (!presetPath || presetPath.length == 0) return;
 
     NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+
+    // O(1) dictionary lookup
+    NSNumber *cachedIndex = _presetPathIndex[targetPath];
+    if (cachedIndex) {
+        uint32_t idx = cachedIndex.unsignedIntValue;
+        if (idx < projectm_playlist_size(_playlist)) {
+            projectm_playlist_set_position(_playlist, idx, PMUseHardCutTransitions());
+            [self refreshCurrentPresetName:idx];
+            return;
+        }
+    }
+
+    // Fallback: linear scan (dictionary miss or stale index)
     uint32_t totalPresets = projectm_playlist_size(_playlist);
     uint32_t selectedIndex = 0;
     BOOL foundIndex = NO;
@@ -51,6 +64,7 @@
         return;
     }
 
+    // Dynamic insert path
     bool inserted = false;
     try {
         inserted = projectm_playlist_add_preset(_playlist, [targetPath UTF8String], true);
@@ -59,6 +73,7 @@
     }
 
     if (inserted) {
+        _presetPathIndex = nil;
         uint32_t dynamicIndex = projectm_playlist_size(_playlist);
         if (dynamicIndex > 0) {
             dynamicIndex -= 1;
