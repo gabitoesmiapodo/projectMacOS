@@ -94,6 +94,7 @@ extern const void *kPresetMenuPathKey;
     int _cachedMeshQuality;
     pfc::string8 _lastCustomFolder;
     int _lastSortOrder;
+    NSDictionary<NSString *, NSNumber *> *_presetPathIndex;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
