@@ -545,6 +545,35 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     }
 }
 
+- (void)buildPresetPathIndex {
+    if (!_playlist) {
+        _presetPathIndex = nil;
+        return;
+    }
+
+    uint32_t count = projectm_playlist_size(_playlist);
+    if (count == 0) {
+        _presetPathIndex = nil;
+        return;
+    }
+
+    NSMutableDictionary<NSString *, NSNumber *> *index = [NSMutableDictionary dictionaryWithCapacity:count];
+    char **items = projectm_playlist_items(_playlist, 0, count);
+    if (items) {
+        for (uint32_t i = 0; items[i]; ++i) {
+            NSString *path = @(items[i]);
+            NSString *normalized = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+            if (normalized.length > 0) {
+                index[normalized] = @(i);
+            }
+        }
+        projectm_playlist_free_string_array(items);
+    }
+
+    _presetPathIndex = [index copy];
+    PMLog("projectM: built preset path index with ", pfc::format_int(count).c_str(), " entries");
+}
+
 - (void)loadPresetsFromCurrentSource {
     try {
         @try {

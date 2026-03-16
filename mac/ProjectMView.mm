@@ -63,6 +63,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
 
     _projectMInitialized = NO;
+    _presetPathIndex = nil;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame {
