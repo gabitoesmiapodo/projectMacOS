@@ -12,8 +12,6 @@
 @implementation ProjectMPrefsVisualizationViewController {
     NSPopUpButton *_beatSensitivityPopup;
     NSButton *_aspectCorrectionCheckbox;
-    NSButton *_mouseInteractionCheckbox;
-    NSPopUpButton *_mouseEffectPopup;
 }
 
 - (void)loadView {
@@ -38,19 +36,6 @@
     [stack addArrangedSubview:_aspectCorrectionCheckbox];
     [stack addArrangedSubview:[self helpText:@"Preserve preset aspect ratio. When off, presets stretch to fill the window."]];
 
-    _mouseInteractionCheckbox = [NSButton checkboxWithTitle:@"Mouse Interaction" target:self action:@selector(mouseInteractionChanged:)];
-    _mouseInteractionCheckbox.state = cfg_mouse_interaction ? NSControlStateValueOn : NSControlStateValueOff;
-    [stack addArrangedSubview:_mouseInteractionCheckbox];
-    [stack addArrangedSubview:[self helpText:@"Click or drag on the visualization to create visual effects."]];
-
-    _mouseEffectPopup = [self popupWithTitles:@[@"Random", @"Circle", @"Radial Blob", @"Line", @"Double Line"]
-                                       values:@[@0, @1, @2, @7, @8]
-                                 currentValue:(int)cfg_mouse_effect
-                                       action:@selector(mouseEffectChanged:)];
-    _mouseEffectPopup.enabled = cfg_mouse_interaction;
-    [stack addArrangedSubview:[self rowWithLabel:@"Mouse Effect:" control:_mouseEffectPopup]];
-    [stack addArrangedSubview:[self helpText:@"Type of visual effect created by mouse interaction. Only applies when mouse interaction is enabled."]];
-
     [root addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.topAnchor constraintEqualToAnchor:root.topAnchor],
@@ -67,17 +52,6 @@
 
 - (void)aspectCorrectionChanged:(id)sender {
     cfg_aspect_correction = (_aspectCorrectionCheckbox.state == NSControlStateValueOn);
-    PMSettingsDidChange();
-}
-
-- (void)mouseInteractionChanged:(id)sender {
-    cfg_mouse_interaction = (_mouseInteractionCheckbox.state == NSControlStateValueOn);
-    _mouseEffectPopup.enabled = cfg_mouse_interaction;
-    PMSettingsDidChange();
-}
-
-- (void)mouseEffectChanged:(id)sender {
-    cfg_mouse_effect = (int)_mouseEffectPopup.selectedItem.tag;
     PMSettingsDidChange();
 }
 
