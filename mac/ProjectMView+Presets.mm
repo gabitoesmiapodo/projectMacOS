@@ -572,57 +572,57 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 PMLog("projectM: loading presets from ", loadedFromZip ? "ZIP source" : "folder source");
                 PMLog("projectM: active preset data path=", [activeDataDirPath UTF8String]);
 
-            NSString *texturesPath = [activeDataDirPath stringByAppendingPathComponent:@"Textures"];
-            const char *texPaths[] = {[texturesPath UTF8String], [activeDataDirPath UTF8String]};
-            projectm_set_texture_search_paths(_projectM, texPaths, 2);
+                NSString *texturesPath = [activeDataDirPath stringByAppendingPathComponent:@"Textures"];
+                const char *texPaths[] = {[texturesPath UTF8String], [activeDataDirPath UTF8String]};
+                projectm_set_texture_search_paths(_projectM, texPaths, 2);
 
-            NSString *presetsPath = [activeDataDirPath stringByAppendingPathComponent:@"Presets"];
-            uint32_t added = [self addPresetsFromPath:presetsPath recursive:YES];
-            if (added > 0) {
-                _activePresetsRootPath = presetsPath;
-            }
-
-            if (added == 0) {
-                added = [self addPresetsFromPath:activeDataDirPath recursive:loadedFromZip];
+                NSString *presetsPath = [activeDataDirPath stringByAppendingPathComponent:@"Presets"];
+                uint32_t added = [self addPresetsFromPath:presetsPath recursive:YES];
                 if (added > 0) {
-                    _activePresetsRootPath = activeDataDirPath;
+                    _activePresetsRootPath = presetsPath;
                 }
-            }
 
-            projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
-            projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
-
-            // Apply sort order
-            int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
-            projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
-            projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
-
-            uint32_t totalPresets = projectm_playlist_size(_playlist);
-            int presetIndex = -1;
-            auto savedName = cfg_preset_name.get();
-            if (savedName.length() > 0 && totalPresets > 0) {
-                char **items = projectm_playlist_items(_playlist, 0, totalPresets);
-                for (uint32_t i = 0; items && items[i]; ++i) {
-                    if ([[@(items[i]) lastPathComponent] isEqualToString:@(savedName.get_ptr())]) {
-                        presetIndex = (int)i;
-                        break;
+                if (added == 0) {
+                    added = [self addPresetsFromPath:activeDataDirPath recursive:loadedFromZip];
+                    if (added > 0) {
+                        _activePresetsRootPath = activeDataDirPath;
                     }
                 }
-                if (items) projectm_playlist_free_string_array(items);
-            }
 
-            if (presetIndex >= 0) {
-                projectm_playlist_set_position(_playlist, presetIndex, PMUseHardCutTransitions());
-                [self refreshCurrentPresetName:(uint32_t)presetIndex];
-            } else if (totalPresets > 0) {
-                std::srand((unsigned)std::time(0));
-                uint32_t randomIndex = (uint32_t)(std::rand() % totalPresets);
-                projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
-                [self refreshCurrentPresetName:randomIndex];
-            } else {
-                PMLogError("projectM: source found but contains no presets, using default preset.");
-                [self loadDefaultPresetFallback];
-            }
+                projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
+                projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
+
+                // Apply sort order
+                int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+                projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
+                projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
+
+                uint32_t totalPresets = projectm_playlist_size(_playlist);
+                int presetIndex = -1;
+                auto savedName = cfg_preset_name.get();
+                if (savedName.length() > 0 && totalPresets > 0) {
+                    char **items = projectm_playlist_items(_playlist, 0, totalPresets);
+                    for (uint32_t i = 0; items && items[i]; ++i) {
+                        if ([[@(items[i]) lastPathComponent] isEqualToString:@(savedName.get_ptr())]) {
+                            presetIndex = (int)i;
+                            break;
+                        }
+                    }
+                    if (items) projectm_playlist_free_string_array(items);
+                }
+
+                if (presetIndex >= 0) {
+                    projectm_playlist_set_position(_playlist, presetIndex, PMUseHardCutTransitions());
+                    [self refreshCurrentPresetName:(uint32_t)presetIndex];
+                } else if (totalPresets > 0) {
+                    std::srand((unsigned)std::time(0));
+                    uint32_t randomIndex = (uint32_t)(std::rand() % totalPresets);
+                    projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
+                    [self refreshCurrentPresetName:randomIndex];
+                } else {
+                    PMLogError("projectM: source found but contains no presets, using default preset.");
+                    [self loadDefaultPresetFallback];
+                }
                 return;
             }
 
