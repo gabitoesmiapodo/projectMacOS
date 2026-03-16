@@ -461,14 +461,6 @@
     XCTAssertEqual(PMMeshSizeForQuality(99), 128);
 }
 
-- (void)testValidatedHardCutInterval {
-    XCTAssertEqual(PMValidatedHardCutInterval(5), 5);
-    XCTAssertEqual(PMValidatedHardCutInterval(10), 10);
-    XCTAssertEqual(PMValidatedHardCutInterval(20), 20);
-    XCTAssertEqual(PMValidatedHardCutInterval(30), 30);
-    XCTAssertEqual(PMValidatedHardCutInterval(99), 20);
-}
-
 - (void)testValidatedSoftCutDuration {
     XCTAssertEqual(PMValidatedSoftCutDuration(1), 1);
     XCTAssertEqual(PMValidatedSoftCutDuration(2), 2);

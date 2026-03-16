@@ -367,14 +367,6 @@ int PMMeshSizeForQuality(int quality) {
     }
 }
 
-int PMValidatedHardCutInterval(int requested) {
-    static const int valid[] = {5, 10, 20, 30};
-    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
-        if (valid[i] == requested) return requested;
-    }
-    return 20;
-}
-
 int PMValidatedSoftCutDuration(int requested) {
     static const int valid[] = {1, 2, 3, 5};
     for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {

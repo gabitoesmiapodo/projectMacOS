@@ -23,7 +23,6 @@ extern cfg_bool cfg_auto_pause;
 extern cfg_int cfg_soft_cut_duration;
 extern cfg_bool cfg_hard_cuts;
 extern cfg_int cfg_hard_cut_sensitivity;
-extern cfg_int cfg_hard_cut_interval;
 extern cfg_int cfg_duration_randomization;
 // Visualization
 extern cfg_int cfg_beat_sensitivity;
