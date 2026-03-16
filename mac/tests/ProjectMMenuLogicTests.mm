@@ -84,10 +84,19 @@
 }
 
 - (void)testShouldLockPresetWhenPausedShuffleDisabledOrPlaybackInactive {
-    XCTAssertTrue(PMShouldLockPreset(NO, NO, YES));
-    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES));
-    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO));
-    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES));
+    // Always locked when paused
+    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES, NO));
+    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES, YES));
+    // Always locked when no playback
+    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO, NO));
+    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO, YES));
+    // Unlocked when shuffle on + playing
+    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES, NO));
+    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES, YES));
+    // Unlocked when hard cuts on + playing (even without shuffle)
+    XCTAssertFalse(PMShouldLockPreset(NO, NO, YES, YES));
+    // Locked when both shuffle and hard cuts off + playing
+    XCTAssertTrue(PMShouldLockPreset(NO, NO, YES, NO));
 }
 
 - (void)testRemainingShuffleDurationUsesConfiguredElapsedAndMinimumFloor {

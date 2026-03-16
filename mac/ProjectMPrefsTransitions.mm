@@ -31,6 +31,7 @@
                                            values:@[@1, @2, @3, @5]
                                      currentValue:(int)cfg_soft_cut_duration
                                            action:@selector(softCutDurationChanged:)];
+    _softCutDurationPopup.enabled = !cfg_hard_cuts;
     [stack addArrangedSubview:[self rowWithLabel:@"Soft Cut Duration:" control:_softCutDurationPopup]];
     [stack addArrangedSubview:[self helpText:@"Cross-fade time when transitioning between presets."]];
 
@@ -82,6 +83,7 @@
     cfg_hard_cuts = (_hardCutsCheckbox.state == NSControlStateValueOn);
     _hardCutSensitivityPopup.enabled = cfg_hard_cuts;
     _hardCutIntervalPopup.enabled = cfg_hard_cuts;
+    _softCutDurationPopup.enabled = !cfg_hard_cuts;
     PMSettingsDidChange();
 }
 

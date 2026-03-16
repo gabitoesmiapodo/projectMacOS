@@ -36,7 +36,7 @@ FOUNDATION_EXPORT NSString *PMHelpBackgroundColorHex(BOOL darkMode);
 /// Build fullscreen options that keep fullscreen on one display.
 FOUNDATION_EXPORT NSDictionary<NSViewFullScreenModeOptionKey, id> *PMVisualizationFullScreenOptions(void);
 /// Return whether projectM preset lock should be enabled.
-FOUNDATION_EXPORT BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback);
+FOUNDATION_EXPORT BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback, BOOL hardCutsEnabled);
 /// Supported preset duration options in seconds.
 FOUNDATION_EXPORT NSArray<NSNumber *> *PMPresetDurationOptions(void);
 /// Validate configured duration and return a supported value.

@@ -466,7 +466,7 @@ NSMenuItem *pause = [menu addItemWithTitle:PMPauseMenuTitle(_isVisualizationPaus
         }
 
         if (_projectM) {
-            projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive));
+            projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive, cfg_hard_cuts));
         }
 
         if (contextLocked) {
