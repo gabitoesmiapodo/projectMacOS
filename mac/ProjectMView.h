@@ -28,8 +28,6 @@ extern cfg_int cfg_duration_randomization;
 // Visualization
 extern cfg_int cfg_beat_sensitivity;
 extern cfg_bool cfg_aspect_correction;
-extern cfg_bool cfg_mouse_interaction;
-extern cfg_int cfg_mouse_effect;
 // Presets
 extern cfg_string cfg_custom_presets_folder;
 extern cfg_int cfg_preset_sort_order;

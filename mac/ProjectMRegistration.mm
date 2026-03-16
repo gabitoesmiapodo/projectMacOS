@@ -36,8 +36,6 @@ static const GUID guid_cfg_duration_randomization = { 0x14b53657, 0x2c3e, 0x4402
 // Visualization
 static const GUID guid_cfg_beat_sensitivity      = { 0x25c64768, 0x3d4f, 0x4513, { 0x4c, 0x6e, 0x70, 0x82, 0xa4, 0xbc, 0xde, 0xf0 } };
 static const GUID guid_cfg_aspect_correction     = { 0x36d75879, 0x4e50, 0x4624, { 0x5d, 0x7f, 0x81, 0x93, 0xb5, 0xcd, 0xef, 0x01 } };
-static const GUID guid_cfg_mouse_interaction     = { 0x47e8698a, 0x5f61, 0x4735, { 0x6e, 0x80, 0x92, 0xa4, 0xc6, 0xde, 0xf0, 0x12 } };
-static const GUID guid_cfg_mouse_effect          = { 0x58f97a9b, 0x6072, 0x4846, { 0x7f, 0x91, 0xa3, 0xb5, 0xd7, 0xef, 0x01, 0x23 } };
 // Presets
 static const GUID guid_cfg_custom_presets_folder = { 0x690a8bac, 0x7183, 0x4957, { 0x80, 0xa2, 0xb4, 0xc6, 0xe8, 0xf0, 0x12, 0x34 } };
 static const GUID guid_cfg_preset_sort_order     = { 0x7a1b9cbd, 0x8294, 0x4a68, { 0x91, 0xb3, 0xc5, 0xd7, 0xf9, 0x01, 0x23, 0x45 } };
@@ -66,8 +64,6 @@ cfg_int cfg_duration_randomization(guid_cfg_duration_randomization, 0);
 // Visualization
 cfg_int cfg_beat_sensitivity(guid_cfg_beat_sensitivity, 1);
 cfg_bool cfg_aspect_correction(guid_cfg_aspect_correction, true);
-cfg_bool cfg_mouse_interaction(guid_cfg_mouse_interaction, false);
-cfg_int cfg_mouse_effect(guid_cfg_mouse_effect, 0);
 // Presets
 cfg_string cfg_custom_presets_folder(guid_cfg_custom_presets_folder, "");
 cfg_int cfg_preset_sort_order(guid_cfg_preset_sort_order, 0);
