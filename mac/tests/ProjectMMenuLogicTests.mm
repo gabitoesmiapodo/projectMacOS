@@ -437,10 +437,10 @@
 // MARK: - Configuration helper tests
 
 - (void)testSensitivityFloatValueMapsLevelsCorrectly {
-    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(0), 0.5f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(0), 0.2f, 0.001f);
     XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(1), 1.0f, 0.001f);
-    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(2), 1.5f, 0.001f);
-    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(3), 2.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(2), 3.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(3), 5.0f, 0.001f);
     // Out of range defaults to 1.0
     XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(99), 1.0f, 0.001f);
     XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(-1), 1.0f, 0.001f);

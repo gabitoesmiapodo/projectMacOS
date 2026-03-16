@@ -340,10 +340,10 @@ PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue) {
 
 float PMSensitivityFloatValue(int level) {
     switch (level) {
-        case 0: return 0.5f;
+        case 0: return 0.2f;
         case 1: return 1.0f;
-        case 2: return 1.5f;
-        case 3: return 2.0f;
+        case 2: return 3.0f;
+        case 3: return 5.0f;
         default: return 1.0f;
     }
 }
