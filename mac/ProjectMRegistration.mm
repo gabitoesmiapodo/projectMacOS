@@ -31,7 +31,6 @@ static const GUID guid_cfg_auto_pause            = { 0xcf608102, 0xd7e9, 0x4fbd,
 static const GUID guid_cfg_soft_cut_duration     = { 0xd0719213, 0xe8fa, 0x40ce, { 0xf7, 0x19, 0x2b, 0x3d, 0x5f, 0x67, 0x89, 0xab } };
 static const GUID guid_cfg_hard_cuts             = { 0xe1820324, 0xf90b, 0x41df, { 0x08, 0x2a, 0x3c, 0x4e, 0x60, 0x78, 0x9a, 0xbc } };
 static const GUID guid_cfg_hard_cut_sensitivity  = { 0xf2931435, 0x0a1c, 0x42e0, { 0x19, 0x3b, 0x4d, 0x5f, 0x71, 0x89, 0xab, 0xcd } };
-static const GUID guid_cfg_hard_cut_interval     = { 0x03a42546, 0x1b2d, 0x43f1, { 0x2a, 0x4c, 0x5e, 0x60, 0x82, 0x9a, 0xbc, 0xde } };
 static const GUID guid_cfg_duration_randomization = { 0x14b53657, 0x2c3e, 0x4402, { 0x3b, 0x5d, 0x6f, 0x71, 0x93, 0xab, 0xcd, 0xef } };
 // Visualization
 static const GUID guid_cfg_beat_sensitivity      = { 0x25c64768, 0x3d4f, 0x4513, { 0x4c, 0x6e, 0x70, 0x82, 0xa4, 0xbc, 0xde, 0xf0 } };
@@ -57,7 +56,6 @@ cfg_bool cfg_auto_pause(guid_cfg_auto_pause, false);
 cfg_int cfg_soft_cut_duration(guid_cfg_soft_cut_duration, 3);
 cfg_bool cfg_hard_cuts(guid_cfg_hard_cuts, false);
 cfg_int cfg_hard_cut_sensitivity(guid_cfg_hard_cut_sensitivity, 1);
-cfg_int cfg_hard_cut_interval(guid_cfg_hard_cut_interval, 20);
 cfg_int cfg_duration_randomization(guid_cfg_duration_randomization, 0);
 // Visualization
 cfg_int cfg_beat_sensitivity(guid_cfg_beat_sensitivity, 1);

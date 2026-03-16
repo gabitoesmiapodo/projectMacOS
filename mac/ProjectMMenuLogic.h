@@ -139,9 +139,6 @@ FOUNDATION_EXPORT float PMDurationRandomizationFloatValue(int level);
 /// Map mesh quality cfg_int (0-2) to mesh size: 0->64, 1->128, 2->192.
 FOUNDATION_EXPORT int PMMeshSizeForQuality(int quality);
 
-/// Map hard cut interval cfg_int to seconds. Valid: 5, 10, 20, 30. Default: 20.
-FOUNDATION_EXPORT int PMValidatedHardCutInterval(int requested);
-
 /// Map soft cut duration cfg_int to seconds. Valid: 1, 2, 3, 5. Default: 3.
 FOUNDATION_EXPORT int PMValidatedSoftCutDuration(int requested);
 

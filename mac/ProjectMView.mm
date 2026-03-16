@@ -250,7 +250,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
     projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
     projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
-    projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
+    projectm_set_hard_cut_duration(_projectM, (double)cfg_preset_duration);
     projectm_set_hard_cut_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_hard_cut_sensitivity));
     projectm_set_beat_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_beat_sensitivity));
     projectm_set_aspect_correction(_projectM, (bool)cfg_aspect_correction);
@@ -583,7 +583,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     }
     projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
     projectm_set_hard_cut_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_hard_cut_sensitivity));
-    projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
+    projectm_set_hard_cut_duration(_projectM, (double)cfg_preset_duration);
     projectm_set_aspect_correction(_projectM, (bool)cfg_aspect_correction);
     projectm_set_easter_egg(_projectM, PMDurationRandomizationFloatValue((int)cfg_duration_randomization));
     projectm_set_preset_duration(_projectM, (double)PMValidatedPresetDuration((int)cfg_preset_duration));

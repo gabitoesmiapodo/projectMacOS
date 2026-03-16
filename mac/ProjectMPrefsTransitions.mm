@@ -13,7 +13,6 @@
     NSPopUpButton *_softCutDurationPopup;
     NSButton *_hardCutsCheckbox;
     NSPopUpButton *_hardCutSensitivityPopup;
-    NSPopUpButton *_hardCutIntervalPopup;
     NSPopUpButton *_durationRandomizationPopup;
 }
 
@@ -50,14 +49,6 @@
     [stack addArrangedSubview:[self rowWithLabel:@"Hard Cut Sensitivity:" control:_hardCutSensitivityPopup]];
     [stack addArrangedSubview:[self helpText:@"How strong a beat must be to trigger a hard cut. Only applies when hard cuts are enabled."]];
 
-    _hardCutIntervalPopup = [self popupWithTitles:@[@"5s", @"10s", @"20s", @"30s"]
-                                           values:@[@5, @10, @20, @30]
-                                     currentValue:(int)cfg_hard_cut_interval
-                                           action:@selector(hardCutIntervalChanged:)];
-    _hardCutIntervalPopup.enabled = cfg_hard_cuts;
-    [stack addArrangedSubview:[self rowWithLabel:@"Hard Cut Min Interval:" control:_hardCutIntervalPopup]];
-    [stack addArrangedSubview:[self helpText:@"Minimum time between hard cuts to prevent rapid flickering."]];
-
     _durationRandomizationPopup = [self popupWithTitles:@[@"None", @"Low", @"Medium", @"High"]
                                                  values:@[@0, @1, @2, @3]
                                            currentValue:(int)cfg_duration_randomization
@@ -82,18 +73,12 @@
 - (void)hardCutsChanged:(id)sender {
     cfg_hard_cuts = (_hardCutsCheckbox.state == NSControlStateValueOn);
     _hardCutSensitivityPopup.enabled = cfg_hard_cuts;
-    _hardCutIntervalPopup.enabled = cfg_hard_cuts;
     _softCutDurationPopup.enabled = !cfg_hard_cuts;
     PMSettingsDidChange();
 }
 
 - (void)hardCutSensitivityChanged:(id)sender {
     cfg_hard_cut_sensitivity = (int)_hardCutSensitivityPopup.selectedItem.tag;
-    PMSettingsDidChange();
-}
-
-- (void)hardCutIntervalChanged:(id)sender {
-    cfg_hard_cut_interval = PMValidatedHardCutInterval((int)_hardCutIntervalPopup.selectedItem.tag);
     PMSettingsDidChange();
 }
 
