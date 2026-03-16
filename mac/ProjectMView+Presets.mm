@@ -728,17 +728,27 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         uint32_t totalPresets = projectm_playlist_size(_playlist);
         if (totalPresets > 0 && presetFilename.length > 0) {
             NSString *normalizedFailed = [[presetFilename stringByStandardizingPath] stringByResolvingSymlinksInPath];
-            char **items = projectm_playlist_items(_playlist, 0, totalPresets);
             uint32_t failedIndex = UINT32_MAX;
-            for (uint32_t i = 0; items && items[i]; ++i) {
-                NSString *candidatePath = @(items[i]);
-                NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
-                if (PMPresetPathsMatch(normalizedCandidate, normalizedFailed)) {
-                    failedIndex = i;
-                    break;
-                }
+
+            // O(1) dictionary lookup (exact match)
+            NSNumber *cachedIndex = _presetPathIndex[normalizedFailed];
+            if (cachedIndex && cachedIndex.unsignedIntValue < totalPresets) {
+                failedIndex = cachedIndex.unsignedIntValue;
             }
-            if (items) projectm_playlist_free_string_array(items);
+
+            // Fallback: linear scan with fuzzy matching (PMPresetPathsMatch)
+            if (failedIndex == UINT32_MAX) {
+                char **items = projectm_playlist_items(_playlist, 0, totalPresets);
+                for (uint32_t i = 0; items && items[i]; ++i) {
+                    NSString *candidatePath = @(items[i]);
+                    NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+                    if (PMPresetPathsMatch(normalizedCandidate, normalizedFailed)) {
+                        failedIndex = i;
+                        break;
+                    }
+                }
+                if (items) projectm_playlist_free_string_array(items);
+            }
 
             if (failedIndex != UINT32_MAX) {
                 projectm_playlist_remove_preset(_playlist, failedIndex);
@@ -748,12 +758,14 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
         if (PMShouldUseFallbackAfterPresetLoadFailure(totalPresets)) {
             [self loadDefaultPresetFallback];
+            [self buildPresetPathIndex];
             return;
         }
 
         uint32_t randomIndex = (uint32_t)arc4random_uniform(totalPresets);
         projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
         [self refreshCurrentPresetName:randomIndex];
+        [self buildPresetPathIndex];
     }
     @catch (NSException *exception) {
         PMLogError("projectM: Objective-C exception while handling preset load failure: ", [[exception description] UTF8String]);
