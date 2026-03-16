@@ -510,8 +510,8 @@
 - (void)testValidatedPresetSortOrder {
     XCTAssertEqual(PMValidatedPresetSortOrder(0), 0);
     XCTAssertEqual(PMValidatedPresetSortOrder(1), 1);
-    XCTAssertEqual(PMValidatedPresetSortOrder(2), 2);
-    XCTAssertEqual(PMValidatedPresetSortOrder(3), 3);
+    XCTAssertEqual(PMValidatedPresetSortOrder(2), 0);
+    XCTAssertEqual(PMValidatedPresetSortOrder(3), 0);
     XCTAssertEqual(PMValidatedPresetSortOrder(99), 0);
 }
 

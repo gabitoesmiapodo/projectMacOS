@@ -410,7 +410,7 @@ int PMValidatedMeshQuality(int requested) {
 }
 
 int PMValidatedPresetSortOrder(int requested) {
-    if (requested >= 0 && requested <= 3) return requested;
+    if (requested == 0 || requested == 1) return requested;
     return 0;
 }
 
