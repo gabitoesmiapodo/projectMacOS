@@ -11,6 +11,33 @@ extern cfg_string cfg_preset_name;
 extern cfg_int cfg_preset_duration;
 extern cfg_string cfg_preset_favorites;
 extern cfg_int cfg_cycle_favorites_mode;
+extern cfg_bool cfg_debug_logging;
+// Performance
+extern cfg_int cfg_fps_cap;
+extern cfg_int cfg_idle_fps;
+extern cfg_int cfg_resolution_scale;
+extern cfg_bool cfg_vsync;
+extern cfg_int cfg_mesh_quality;
+extern cfg_bool cfg_auto_pause;
+// Transitions
+extern cfg_int cfg_soft_cut_duration;
+extern cfg_bool cfg_hard_cuts;
+extern cfg_int cfg_hard_cut_sensitivity;
+extern cfg_int cfg_duration_randomization;
+// Visualization
+extern cfg_int cfg_beat_sensitivity;
+extern cfg_bool cfg_aspect_correction;
+// Presets
+extern cfg_string cfg_custom_presets_folder;
+extern cfg_int cfg_preset_sort_order;
+
+extern std::atomic<uint32_t> g_settingsGeneration;
+void PMSettingsDidChange(void);
+
+extern NSString * const PMPlaybackStateChangedNotification;
+
+#define PMLog(...)      do { if (cfg_debug_logging) FB2K_console_print(__VA_ARGS__); } while(0)
+#define PMLogError(...) FB2K_console_print(__VA_ARGS__)
 
 bool PMIsMusicPlaybackActive(void);
 void PMSyncMusicPlaybackState(void);
@@ -48,6 +75,25 @@ extern const void *kPresetMenuPathKey;
     double _cycleFavoritesDeadline;
     BOOL _cycleFavoritesActive;
     NSArray<NSString *> *_resolvedCyclePaths;
+    uint64_t _lastRenderTimestamp;
+    int _cachedWidth;
+    int _cachedHeight;
+    uint64_t _fpsCounterStart;
+    uint32_t _fpsFrameCount;
+    BOOL _isAutoPaused;
+    uint32_t _lastSettingsGeneration;
+    // FBO for half-resolution mode
+    GLuint _halfResFBO;
+    GLuint _halfResColorRB;
+    GLuint _halfResDepthRB;
+    int _halfResWidth;
+    int _halfResHeight;
+    int _cachedResolutionScale;
+    int _cachedFpsCap;
+    int _cachedIdleFps;
+    int _cachedMeshQuality;
+    pfc::string8 _lastCustomFolder;
+    int _lastSortOrder;
 }
 /// Render one projectM frame.
 - (void)renderFrame;
@@ -57,6 +103,11 @@ extern const void *kPresetMenuPathKey;
 - (void)createProjectM:(int)width height:(int)height;
 /// Read drawable size clamped to minimum render dimensions.
 - (void)getDrawableSizeWidth:(int *)width height:(int *)height;
+/// Apply all cfg_ settings to projectM state.
+- (void)applySettingsFromPreferences;
+/// Set up or tear down the half-resolution FBO.
+- (void)setupHalfResFBO:(int)fullWidth height:(int)fullHeight;
+- (void)teardownHalfResFBO;
 @end
 
 @interface ProjectMView (Presets)
@@ -143,4 +194,6 @@ extern const void *kPresetMenuPathKey;
 - (void)rebuildResolvedCyclePaths;
 /// Disable shuffle and cycle favorites (called on any manual preset selection).
 - (void)disableAutoplay;
+/// Handle playback state changes for auto-pause.
+- (void)handlePlaybackStateChange:(NSNotification *)notification;
 @end
