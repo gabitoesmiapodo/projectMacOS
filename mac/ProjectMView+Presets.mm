@@ -758,7 +758,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
         if (PMShouldUseFallbackAfterPresetLoadFailure(totalPresets)) {
             [self loadDefaultPresetFallback];
-            [self buildPresetPathIndex];
             return;
         }
 
