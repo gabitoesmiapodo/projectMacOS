@@ -506,40 +506,4 @@
     XCTAssertEqual(PMValidatedPresetSortOrder(99), 0);
 }
 
-- (void)testValidatedRetryCount {
-    XCTAssertEqual(PMValidatedRetryCount(1), 1);
-    XCTAssertEqual(PMValidatedRetryCount(3), 3);
-    XCTAssertEqual(PMValidatedRetryCount(5), 5);
-    XCTAssertEqual(PMValidatedRetryCount(10), 10);
-    XCTAssertEqual(PMValidatedRetryCount(99), 3);
-}
-
-- (void)testParsePresetFilterEmpty {
-    NSArray *result = PMParsePresetFilter(@"");
-    XCTAssertEqual(result.count, (NSUInteger)0);
-    result = PMParsePresetFilter(nil);
-    XCTAssertEqual(result.count, (NSUInteger)0);
-}
-
-- (void)testParsePresetFilterSinglePattern {
-    NSArray *result = PMParsePresetFilter(@"*warp*");
-    XCTAssertEqual(result.count, (NSUInteger)1);
-    XCTAssertEqualObjects(result[0], @"*warp*");
-}
-
-- (void)testParsePresetFilterMultiplePatterns {
-    NSArray *result = PMParsePresetFilter(@" *warp* , *spiral* , *flow* ");
-    XCTAssertEqual(result.count, (NSUInteger)3);
-    XCTAssertEqualObjects(result[0], @"*warp*");
-    XCTAssertEqualObjects(result[1], @"*spiral*");
-    XCTAssertEqualObjects(result[2], @"*flow*");
-}
-
-- (void)testParsePresetFilterSkipsEmptyEntries {
-    NSArray *result = PMParsePresetFilter(@"*warp*,,  , *flow*");
-    XCTAssertEqual(result.count, (NSUInteger)2);
-    XCTAssertEqualObjects(result[0], @"*warp*");
-    XCTAssertEqualObjects(result[1], @"*flow*");
-}
-
 @end

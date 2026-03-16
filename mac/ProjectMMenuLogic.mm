@@ -413,23 +413,3 @@ int PMValidatedPresetSortOrder(int requested) {
     return 0;
 }
 
-int PMValidatedRetryCount(int requested) {
-    static const int valid[] = {1, 3, 5, 10};
-    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
-        if (valid[i] == requested) return requested;
-    }
-    return 3;
-}
-
-NSArray<NSString *> *PMParsePresetFilter(NSString *filterString) {
-    if (filterString.length == 0) return @[];
-    NSArray<NSString *> *components = [filterString componentsSeparatedByString:@","];
-    NSMutableArray<NSString *> *result = [NSMutableArray array];
-    for (NSString *component in components) {
-        NSString *trimmed = [component stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        if (trimmed.length > 0) {
-            [result addObject:trimmed];
-        }
-    }
-    return [result copy];
-}

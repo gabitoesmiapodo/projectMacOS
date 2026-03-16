@@ -589,7 +589,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 }
             }
 
-            projectm_playlist_set_retry_count(_playlist, PMValidatedRetryCount((int)cfg_preset_retry_count));
             projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
             projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
 
@@ -604,26 +603,6 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 ? SORT_ORDER_ASCENDING
                 : SORT_ORDER_DESCENDING;
             projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), sortPredicate, sortDirection);
-
-            // Apply filter
-            NSArray<NSString *> *filterPatterns = PMParsePresetFilter(@(cfg_preset_filter.get().get_ptr()));
-            if (filterPatterns.count > 0) {
-                // cStrings keeps the NSData objects alive until after projectm_playlist_set_filter;
-                // patterns[i] points into cStrings[i].bytes and must not outlive it.
-                NSMutableArray<NSData *> *cStrings = [NSMutableArray array];
-                const char **patterns = (const char **)malloc(sizeof(const char *) * filterPatterns.count);
-                for (NSUInteger i = 0; i < filterPatterns.count; i++) {
-                    NSData *utf8 = [filterPatterns[i] dataUsingEncoding:NSUTF8StringEncoding];
-                    [cStrings addObject:utf8];
-                    patterns[i] = (const char *)utf8.bytes;
-                }
-                projectm_playlist_set_filter(_playlist, patterns, (size_t)filterPatterns.count);
-                projectm_playlist_apply_filter(_playlist);
-                free(patterns);
-            } else {
-                projectm_playlist_set_filter(_playlist, NULL, 0);
-                projectm_playlist_apply_filter(_playlist);
-            }
 
             uint32_t totalPresets = projectm_playlist_size(_playlist);
             int presetIndex = -1;

@@ -264,7 +264,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     _lastSettingsGeneration = g_settingsGeneration.load(std::memory_order_relaxed);
     _lastCustomFolder = cfg_custom_presets_folder.get();
     _lastSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
-    _lastFilter = cfg_preset_filter.get();
 
     _playlist = projectm_playlist_create(_projectM);
     if (!_playlist) {
@@ -596,11 +595,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _cachedMeshQuality = meshQuality;
     }
 
-    // Retry count
-    if (_playlist) {
-        projectm_playlist_set_retry_count(_playlist, PMValidatedRetryCount((int)cfg_preset_retry_count));
-    }
-
     // Auto-pause evaluation
     if (cfg_auto_pause && !_isAudioPlaybackActive && !_isVisualizationPaused && !_isAutoPaused) {
         _isAutoPaused = YES;
@@ -610,18 +604,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAutoPaused = NO;
     }
 
-    // Heavyweight updates: custom folder, sort, filter require playlist reload
+    // Heavyweight updates: custom folder, sort require playlist reload
     // Detected by comparing current cfg values with cached ivars.
     auto currentFolder = cfg_custom_presets_folder.get();
     int currentSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
-    auto currentFilter = cfg_preset_filter.get();
 
     if (strcmp(currentFolder.get_ptr(), _lastCustomFolder.get_ptr()) != 0 ||
-        currentSortOrder != _lastSortOrder ||
-        strcmp(currentFilter.get_ptr(), _lastFilter.get_ptr()) != 0) {
+        currentSortOrder != _lastSortOrder) {
         _lastCustomFolder = currentFolder;
         _lastSortOrder = currentSortOrder;
-        _lastFilter = currentFilter;
         PMLog("projectM: reloading presets due to settings change");
         // Dispatch to main thread to avoid blocking the CVDisplayLink thread with file I/O
         // (ZIP extraction and filesystem enumeration in loadPresetsFromCurrentSource).

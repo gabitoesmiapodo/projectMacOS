@@ -31,8 +31,6 @@ extern cfg_bool cfg_aspect_correction;
 // Presets
 extern cfg_string cfg_custom_presets_folder;
 extern cfg_int cfg_preset_sort_order;
-extern cfg_string cfg_preset_filter;
-extern cfg_int cfg_preset_retry_count;
 
 extern std::atomic<uint32_t> g_settingsGeneration;
 void PMSettingsDidChange(void);
@@ -97,7 +95,6 @@ extern const void *kPresetMenuPathKey;
     int _cachedMeshQuality;
     pfc::string8 _lastCustomFolder;
     int _lastSortOrder;
-    pfc::string8 _lastFilter;
 }
 /// Render one projectM frame.
 - (void)renderFrame;

@@ -39,8 +39,6 @@ static const GUID guid_cfg_aspect_correction     = { 0x36d75879, 0x4e50, 0x4624,
 // Presets
 static const GUID guid_cfg_custom_presets_folder = { 0x690a8bac, 0x7183, 0x4957, { 0x80, 0xa2, 0xb4, 0xc6, 0xe8, 0xf0, 0x12, 0x34 } };
 static const GUID guid_cfg_preset_sort_order     = { 0x7a1b9cbd, 0x8294, 0x4a68, { 0x91, 0xb3, 0xc5, 0xd7, 0xf9, 0x01, 0x23, 0x45 } };
-static const GUID guid_cfg_preset_filter         = { 0x8b2cadce, 0x93a5, 0x4b79, { 0xa2, 0xc4, 0xd6, 0xe8, 0x0a, 0x12, 0x34, 0x56 } };
-static const GUID guid_cfg_preset_retry_count    = { 0x9c3dbedf, 0xa4b6, 0x4c8a, { 0xb3, 0xd5, 0xe7, 0xf9, 0x1b, 0x23, 0x45, 0x67 } };
 
 cfg_bool cfg_preset_shuffle(guid_cfg_preset_shuffle, false);
 cfg_string cfg_preset_name(guid_cfg_preset_name, "");
@@ -67,8 +65,6 @@ cfg_bool cfg_aspect_correction(guid_cfg_aspect_correction, true);
 // Presets
 cfg_string cfg_custom_presets_folder(guid_cfg_custom_presets_folder, "");
 cfg_int cfg_preset_sort_order(guid_cfg_preset_sort_order, 0);
-cfg_string cfg_preset_filter(guid_cfg_preset_filter, "");
-cfg_int cfg_preset_retry_count(guid_cfg_preset_retry_count, 3);
 
 const void *kPresetMenuPathKey = &kPresetMenuPathKey;
 
