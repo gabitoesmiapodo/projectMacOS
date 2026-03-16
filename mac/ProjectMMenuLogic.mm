@@ -84,8 +84,9 @@ NSDictionary<NSViewFullScreenModeOptionKey, id> *PMVisualizationFullScreenOption
     };
 }
 
-BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback) {
-    return isPaused || !shuffleEnabled || !hasActivePlayback;
+BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback, BOOL hardCutsEnabled) {
+    if (isPaused || !hasActivePlayback) return YES;
+    return !shuffleEnabled && !hardCutsEnabled;
 }
 
 NSArray<NSNumber *> *PMPresetDurationOptions(void) {

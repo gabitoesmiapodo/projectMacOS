@@ -243,7 +243,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     projectm_set_mesh_size(_projectM, meshSize, (size_t)(meshSize * heightWidthRatio));
     int fpsCap = PMValidatedFpsCap((int)cfg_fps_cap);
     projectm_set_fps(_projectM, fpsCap > 0 ? fpsCap : 60);
-    projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
+    if (cfg_hard_cuts) {
+        projectm_set_soft_cut_duration(_projectM, 0.01);
+    } else {
+        projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
+    }
     projectm_set_preset_duration(_projectM, (double)cfg_preset_duration);
     projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
     projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
@@ -313,7 +317,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         }
     }
 
-    projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
+    projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive, cfg_hard_cuts) || _pendingShuffleEnable);
 
     _projectMInitialized = YES;
 }
@@ -428,7 +432,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
         [self processPendingPresetRequestInRenderLoop];
 
-        projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
+        projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive, cfg_hard_cuts) || _pendingShuffleEnable);
 
         if (_cachedResolutionScale == 0 && _halfResFBO) {
             // Half-resolution: render to FBO 0 at half viewport, then upscale via staging FBO
@@ -572,7 +576,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     // Immediate projectM API calls (cheap, safe to call even if unchanged)
     projectm_set_beat_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_beat_sensitivity));
-    projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
+    if (cfg_hard_cuts) {
+        projectm_set_soft_cut_duration(_projectM, 0.01);
+    } else {
+        projectm_set_soft_cut_duration(_projectM, (double)PMValidatedSoftCutDuration((int)cfg_soft_cut_duration));
+    }
     projectm_set_hard_cut_enabled(_projectM, (bool)cfg_hard_cuts);
     projectm_set_hard_cut_sensitivity(_projectM, PMSensitivityFloatValue((int)cfg_hard_cut_sensitivity));
     projectm_set_hard_cut_duration(_projectM, (double)PMValidatedHardCutInterval((int)cfg_hard_cut_interval));
