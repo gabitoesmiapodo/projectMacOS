@@ -431,14 +431,19 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         projectm_set_preset_locked(_projectM, PMShouldLockPreset(cfg_preset_shuffle, _isVisualizationPaused, _isAudioPlaybackActive) || _pendingShuffleEnable);
 
         if (_cachedResolutionScale == 0 && _halfResFBO) {
-            // Half-resolution: render to FBO, then blit to screen
-            glBindFramebuffer(GL_FRAMEBUFFER, _halfResFBO);
+            // Half-resolution: render to FBO 0 at half viewport, then upscale via staging FBO
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, _halfResWidth, _halfResHeight);
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             projectm_opengl_render_frame(_projectM);
 
-            // projectM may leave its own FBOs bound; rebind explicitly
+            // Copy lower-left quadrant from FBO 0 into staging FBO
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _halfResFBO);
+            glBlitFramebuffer(0, 0, _halfResWidth, _halfResHeight,
+                              0, 0, _halfResWidth, _halfResHeight,
+                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+            // Upscale from staging FBO back to full default framebuffer
             glBindFramebuffer(GL_READ_FRAMEBUFFER, _halfResFBO);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
             glViewport(0, 0, _cachedWidth, _cachedHeight);
@@ -448,8 +453,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         } else {
             // Standard or Retina: render directly
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             projectm_opengl_render_frame(_projectM);
         }
 
