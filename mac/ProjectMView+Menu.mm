@@ -184,7 +184,22 @@
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    if (self->_isVisualizationPaused || self->_isAutoPaused) {
+    if (self->_isAutoPaused && !self->_isVisualizationPaused) {
+        // Auto-paused but not manually paused: clear auto-pause directly without
+        // toggling _isVisualizationPaused, which would leave the view stuck paused
+        // after auto-unpause on playback resume.
+        self->_isAutoPaused = NO;
+        self->_lastRenderTimestamp = 0;
+        if (self->_displayLink && !CVDisplayLinkIsRunning(self->_displayLink)) {
+            CVReturn status = CVDisplayLinkStart(self->_displayLink);
+            if (status != kCVReturnSuccess) {
+                PMLogError("projectM: CVDisplayLinkStart() failed on click-to-resume from auto-pause.");
+            }
+        }
+        return;
+    }
+
+    if (self->_isVisualizationPaused) {
         [self togglePausePlayback:nil];
         return;
     }
