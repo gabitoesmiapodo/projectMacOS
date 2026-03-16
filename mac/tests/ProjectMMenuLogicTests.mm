@@ -84,10 +84,19 @@
 }
 
 - (void)testShouldLockPresetWhenPausedShuffleDisabledOrPlaybackInactive {
-    XCTAssertTrue(PMShouldLockPreset(NO, NO, YES));
-    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES));
-    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO));
-    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES));
+    // Always locked when paused
+    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES, NO));
+    XCTAssertTrue(PMShouldLockPreset(YES, YES, YES, YES));
+    // Always locked when no playback
+    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO, NO));
+    XCTAssertTrue(PMShouldLockPreset(YES, NO, NO, YES));
+    // Unlocked when shuffle on + playing
+    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES, NO));
+    XCTAssertFalse(PMShouldLockPreset(YES, NO, YES, YES));
+    // Unlocked when hard cuts on + playing (even without shuffle)
+    XCTAssertFalse(PMShouldLockPreset(NO, NO, YES, YES));
+    // Locked when both shuffle and hard cuts off + playing
+    XCTAssertTrue(PMShouldLockPreset(NO, NO, YES, NO));
 }
 
 - (void)testRemainingShuffleDurationUsesConfiguredElapsedAndMinimumFloor {
@@ -423,6 +432,79 @@
     XCTAssertEqual(PMValidatedCycleFavoritesMode(3),   PMCycleFavoritesModeRandom);
     XCTAssertEqual(PMValidatedCycleFavoritesMode(-1),  PMCycleFavoritesModeOff);
     XCTAssertEqual(PMValidatedCycleFavoritesMode(99),  PMCycleFavoritesModeOff);
+}
+
+// MARK: - Configuration helper tests
+
+- (void)testSensitivityFloatValueMapsLevelsCorrectly {
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(0), 0.2f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(1), 1.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(2), 3.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(3), 5.0f, 0.001f);
+    // Out of range defaults to 1.0
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(99), 1.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMSensitivityFloatValue(-1), 1.0f, 0.001f);
+}
+
+- (void)testDurationRandomizationFloatValueMapsLevelsCorrectly {
+    XCTAssertEqualWithAccuracy(PMDurationRandomizationFloatValue(0), 0.001f, 0.0001f);
+    XCTAssertEqualWithAccuracy(PMDurationRandomizationFloatValue(1), 0.25f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMDurationRandomizationFloatValue(2), 0.5f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMDurationRandomizationFloatValue(3), 1.0f, 0.001f);
+    XCTAssertEqualWithAccuracy(PMDurationRandomizationFloatValue(99), 0.001f, 0.0001f);
+}
+
+- (void)testMeshSizeForQualityMapsCorrectly {
+    XCTAssertEqual(PMMeshSizeForQuality(0), 64);
+    XCTAssertEqual(PMMeshSizeForQuality(1), 128);
+    XCTAssertEqual(PMMeshSizeForQuality(2), 192);
+    XCTAssertEqual(PMMeshSizeForQuality(99), 128);
+}
+
+- (void)testValidatedSoftCutDuration {
+    XCTAssertEqual(PMValidatedSoftCutDuration(1), 1);
+    XCTAssertEqual(PMValidatedSoftCutDuration(2), 2);
+    XCTAssertEqual(PMValidatedSoftCutDuration(3), 3);
+    XCTAssertEqual(PMValidatedSoftCutDuration(5), 5);
+    XCTAssertEqual(PMValidatedSoftCutDuration(99), 3);
+}
+
+- (void)testValidatedFpsCap {
+    XCTAssertEqual(PMValidatedFpsCap(0), 0);
+    XCTAssertEqual(PMValidatedFpsCap(30), 30);
+    XCTAssertEqual(PMValidatedFpsCap(45), 45);
+    XCTAssertEqual(PMValidatedFpsCap(60), 60);
+    XCTAssertEqual(PMValidatedFpsCap(90), 90);
+    XCTAssertEqual(PMValidatedFpsCap(120), 120);
+    XCTAssertEqual(PMValidatedFpsCap(99), 60);
+}
+
+- (void)testValidatedIdleFps {
+    XCTAssertEqual(PMValidatedIdleFps(15), 15);
+    XCTAssertEqual(PMValidatedIdleFps(30), 30);
+    XCTAssertEqual(PMValidatedIdleFps(99), 30);
+}
+
+- (void)testValidatedResolutionScale {
+    XCTAssertEqual(PMValidatedResolutionScale(0), 0);
+    XCTAssertEqual(PMValidatedResolutionScale(1), 1);
+    XCTAssertEqual(PMValidatedResolutionScale(2), 2);
+    XCTAssertEqual(PMValidatedResolutionScale(99), 1);
+}
+
+- (void)testValidatedMeshQuality {
+    XCTAssertEqual(PMValidatedMeshQuality(0), 0);
+    XCTAssertEqual(PMValidatedMeshQuality(1), 1);
+    XCTAssertEqual(PMValidatedMeshQuality(2), 2);
+    XCTAssertEqual(PMValidatedMeshQuality(99), 1);
+}
+
+- (void)testValidatedPresetSortOrder {
+    XCTAssertEqual(PMValidatedPresetSortOrder(0), 0);
+    XCTAssertEqual(PMValidatedPresetSortOrder(1), 1);
+    XCTAssertEqual(PMValidatedPresetSortOrder(2), 0);
+    XCTAssertEqual(PMValidatedPresetSortOrder(3), 0);
+    XCTAssertEqual(PMValidatedPresetSortOrder(99), 0);
 }
 
 @end

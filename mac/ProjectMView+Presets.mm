@@ -237,15 +237,13 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         [candidatePaths addObject:path];
     }
 
-    [candidatePaths sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-
     uint32_t added = 0;
     for (NSString *candidatePath in candidatePaths) {
         bool fileAdded = false;
         try {
             fileAdded = projectm_playlist_add_preset(_playlist, [candidatePath UTF8String], false);
         } catch (...) {
-            FB2K_console_print("projectM: exception while adding preset path, skipping: ", [candidatePath UTF8String]);
+            PMLog("projectM: exception while adding preset path, skipping: ", [candidatePath UTF8String]);
             continue;
         }
 
@@ -329,7 +327,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         NSTimeInterval currentMtime = 0;
         uint64_t currentSize = 0;
         if (![self zipFingerprintForPath:zipPath mtime:&currentMtime sizeByte:&currentSize]) {
-            FB2K_console_print("projectM: zip-cache cannot stat ZIP for fingerprinting.");
+            PMLogError("projectM: zip-cache cannot stat ZIP for fingerprinting.");
             return nil;
         }
 
@@ -350,7 +348,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         BOOL cacheLooksValid = normalizedCachedRoot.length > 0 && [self isDirectoryPresetContainer:normalizedCachedRoot];
 
         if (PMShouldReuseZipExtractionCache(metadataValid, fingerprintMatches, cacheLooksValid)) {
-            FB2K_console_print("projectM: zip-cache=hit");
+            PMLog("projectM: zip-cache=hit");
             return normalizedCachedRoot;
         }
 
@@ -363,13 +361,13 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             missReason = "cache_invalid";
         }
 
-        FB2K_console_print("projectM: zip-cache=miss reason=", missReason);
+        PMLog("projectM: zip-cache=miss reason=", missReason);
         [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
 
         NSString *extractTempRoot = [extractRoot stringByAppendingString:@".tmp"];
         NSError *error = nil;
         if (![fm createDirectoryAtPath:extractTempRoot withIntermediateDirectories:YES attributes:nil error:&error]) {
-            FB2K_console_print("projectM: cannot create temporary ZIP extraction path: ", [extractTempRoot UTF8String]);
+            PMLogError("projectM: cannot create temporary ZIP extraction path: ", [extractTempRoot UTF8String]);
             return nil;
         }
 
@@ -396,11 +394,11 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 std::string content = zipfs::readfile(fi->full_name);
                 NSData *data = content.empty() ? [NSData data] : [NSData dataWithBytes:content.data() length:content.size()];
                 if (![data writeToFile:outputPath atomically:NO]) {
-                    FB2K_console_print("projectM: failed writing extracted file: ", [outputPath UTF8String]);
+                    PMLogError("projectM: failed writing extracted file: ", [outputPath UTF8String]);
                 }
             }
         } catch (...) {
-            FB2K_console_print("projectM: ZIP extraction failed.");
+            PMLogError("projectM: ZIP extraction failed.");
         }
 
         BOOL extractedDir = NO;
@@ -411,34 +409,34 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
         NSString *normalizedTempRoot = [self normalizedSingleTopLevelDirectoryForRoot:extractTempRoot];
         if (![self isDirectoryPresetContainer:normalizedTempRoot]) {
-            FB2K_console_print("projectM: ZIP extraction produced no usable Presets data.");
+            PMLogError("projectM: ZIP extraction produced no usable Presets data.");
             [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
             return nil;
         }
 
         NSError *moveError = nil;
         if (![fm moveItemAtPath:extractTempRoot toPath:extractRoot error:&moveError]) {
-            FB2K_console_print("projectM: cannot finalize ZIP extraction cache path.");
+            PMLogError("projectM: cannot finalize ZIP extraction cache path.");
             [self clearZipCacheAtRoot:extractRoot metadataPath:metadataPath];
             return nil;
         }
 
         NSString *normalizedExtractRoot = [self normalizedSingleTopLevelDirectoryForRoot:extractRoot];
         NSInteger extractDurationMs = (NSInteger)((CFAbsoluteTimeGetCurrent() - extractionStart) * 1000.0);
-        FB2K_console_print("projectM: zip-cache extracted ms=", pfc::format_int((int64_t)extractDurationMs).c_str());
+        PMLog("projectM: zip-cache extracted ms=", pfc::format_int((int64_t)extractDurationMs).c_str());
 
         if (![self writeZipCacheMetadataAtPath:metadataPath
                                        zipPath:zipPath
                                          mtime:currentMtime
                                       sizeByte:currentSize
                               extractDurationMs:extractDurationMs]) {
-            FB2K_console_print("projectM: zip-cache metadata write failed; cache will refresh next startup.");
+            PMLog("projectM: zip-cache metadata write failed; cache will refresh next startup.");
         }
 
         return normalizedExtractRoot;
     }
     @catch (NSException *exception) {
-        FB2K_console_print("projectM: Objective-C exception in prepareDataDirectoryFromZipAtPath: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception in prepareDataDirectoryFromZipAtPath: ", [[exception description] UTF8String]);
         return nil;
     }
     @finally {
@@ -450,6 +448,27 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
 - (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip {
     if (usedZip) *usedZip = NO;
+
+    // Check custom presets folder first
+    auto customFolder = cfg_custom_presets_folder.get();
+    NSString *customPath = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
+    if (customPath.length > 0) {
+        NSFileManager *fm = [NSFileManager defaultManager];
+        BOOL isDir = NO;
+        if ([fm fileExistsAtPath:customPath isDirectory:&isDir] && isDir) {
+            // Verify it has at least one .milk file
+            NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:customPath];
+            for (NSString *entry in enumerator) {
+                if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+                    PMLog("projectM: using custom presets folder: ", [customPath UTF8String]);
+                    return [customPath stringByStandardizingPath];
+                }
+            }
+            PMLogError("projectM: custom presets folder contains no .milk files: ", [customPath UTF8String]);
+        } else {
+            PMLogError("projectM: custom presets folder not found: ", [customPath UTF8String]);
+        }
+    }
 
     NSString *zipPath = [self projectMacOSZipPath];
     NSString *extractedPath = [self prepareDataDirectoryFromZipAtPath:zipPath];
@@ -519,10 +538,10 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     try {
         projectm_load_preset_data(_projectM, kBuiltInFallbackPreset, false);
         cfg_preset_name = "projectMacOS.milk";
-        FB2K_console_print("projectM: built-in fallback preset loaded.");
+        PMLog("projectM: built-in fallback preset loaded.");
     } catch (...) {
         cfg_preset_name = "";
-        FB2K_console_print("projectM: built-in fallback preset failed to load.");
+        PMLogError("projectM: built-in fallback preset failed to load.");
     }
 }
 
@@ -534,7 +553,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             if (!_playlist) {
                 _playlist = projectm_playlist_create(_projectM);
                 if (!_playlist) {
-                    FB2K_console_print("projectM: projectm_playlist_create() failed.");
+                    PMLogError("projectM: projectm_playlist_create() failed.");
                     [self loadDefaultPresetFallback];
                     return;
                 }
@@ -550,8 +569,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             NSString *activeDataDirPath = [self resolvedDataDirectoryPathUsedZip:&loadedFromZip];
 
             if (activeDataDirPath.length > 0) {
-                FB2K_console_print("projectM: loading presets from ", loadedFromZip ? "ZIP source" : "folder source");
-                FB2K_console_print("projectM: active preset data path=", [activeDataDirPath UTF8String]);
+                PMLog("projectM: loading presets from ", loadedFromZip ? "ZIP source" : "folder source");
+                PMLog("projectM: active preset data path=", [activeDataDirPath UTF8String]);
 
             NSString *texturesPath = [activeDataDirPath stringByAppendingPathComponent:@"Textures"];
             const char *texPaths[] = {[texturesPath UTF8String], [activeDataDirPath UTF8String]};
@@ -570,9 +589,13 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 }
             }
 
-            projectm_playlist_set_retry_count(_playlist, 0);
             projectm_playlist_set_preset_switched_event_callback(_playlist, callbackPresetSwitched, (__bridge void *)self);
             projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
+
+            // Apply sort order
+            int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+            projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
+            projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
 
             uint32_t totalPresets = projectm_playlist_size(_playlist);
             int presetIndex = -1;
@@ -597,24 +620,24 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 projectm_playlist_set_position(_playlist, randomIndex, PMUseHardCutTransitions());
                 [self refreshCurrentPresetName:randomIndex];
             } else {
-                FB2K_console_print("projectM: source found but contains no presets, using default preset.");
+                PMLogError("projectM: source found but contains no presets, using default preset.");
                 [self loadDefaultPresetFallback];
             }
                 return;
             }
 
-            FB2K_console_print("projectM: no data source found. Checked default ZIP and default folder.");
+            PMLogError("projectM: no data source found. Checked default ZIP and default folder.");
             [self loadDefaultPresetFallback];
         }
         @catch (NSException *exception) {
-            FB2K_console_print("projectM: Objective-C exception in loadPresetsFromCurrentSource: ", [[exception description] UTF8String]);
+            PMLogError("projectM: Objective-C exception in loadPresetsFromCurrentSource: ", [[exception description] UTF8String]);
             [self loadDefaultPresetFallback];
         }
     } catch (const std::exception &e) {
-        FB2K_console_print("projectM: C++ exception in loadPresetsFromCurrentSource: ", e.what());
+        PMLogError("projectM: C++ exception in loadPresetsFromCurrentSource: ", e.what());
         [self loadDefaultPresetFallback];
     } catch (...) {
-        FB2K_console_print("projectM: unknown C++ exception in loadPresetsFromCurrentSource");
+        PMLogError("projectM: unknown C++ exception in loadPresetsFromCurrentSource");
         [self loadDefaultPresetFallback];
     }
 }
@@ -658,7 +681,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
     NSString *safePresetName = PMFailedPresetConsoleName(presetFilename);
     NSString *safeReason = PMConsoleReasonOrDefault(message);
-    FB2K_console_print("projectM: failed to load preset, skipping: ", [safePresetName UTF8String], " reason=", [safeReason UTF8String]);
+    PMLogError("projectM: failed to load preset, skipping: ", [safePresetName UTF8String], " reason=", [safeReason UTF8String]);
 
     CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
     BOOL contextLocked = NO;
@@ -701,7 +724,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         [self refreshCurrentPresetName:randomIndex];
     }
     @catch (NSException *exception) {
-        FB2K_console_print("projectM: Objective-C exception while handling preset load failure: ", [[exception description] UTF8String]);
+        PMLogError("projectM: Objective-C exception while handling preset load failure: ", [[exception description] UTF8String]);
         [self loadDefaultPresetFallback];
     }
     @finally {
@@ -721,6 +744,11 @@ static void callbackPresetSwitched(bool is_hard_cut, unsigned int index, void *u
     if (!view || !view->_playlist)
         return;
     [view refreshCurrentPresetName:(uint32_t)index];
+    char *name = projectm_playlist_item(view->_playlist, index);
+    if (name) {
+        PMLog("projectM: preset switched to ", [[[@(name) lastPathComponent] stringByDeletingPathExtension] UTF8String]);
+        projectm_playlist_free_string(name);
+    }
 }
 
 static void callbackPresetSwitchFailed(const char *preset_filename, const char *message, void *user_data) {

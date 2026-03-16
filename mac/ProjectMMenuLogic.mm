@@ -84,8 +84,9 @@ NSDictionary<NSViewFullScreenModeOptionKey, id> *PMVisualizationFullScreenOption
     };
 }
 
-BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback) {
-    return isPaused || !shuffleEnabled || !hasActivePlayback;
+BOOL PMShouldLockPreset(BOOL shuffleEnabled, BOOL isPaused, BOOL hasActivePlayback, BOOL hardCutsEnabled) {
+    if (isPaused || !hasActivePlayback) return YES;
+    return !shuffleEnabled && !hardCutsEnabled;
 }
 
 NSArray<NSNumber *> *PMPresetDurationOptions(void) {
@@ -336,3 +337,72 @@ PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue) {
         default:                             return PMCycleFavoritesModeOff;
     }
 }
+
+float PMSensitivityFloatValue(int level) {
+    switch (level) {
+        case 0: return 0.2f;
+        case 1: return 1.0f;
+        case 2: return 3.0f;
+        case 3: return 5.0f;
+        default: return 1.0f;
+    }
+}
+
+float PMDurationRandomizationFloatValue(int level) {
+    switch (level) {
+        case 0: return 0.001f;
+        case 1: return 0.25f;
+        case 2: return 0.5f;
+        case 3: return 1.0f;
+        default: return 0.001f;
+    }
+}
+
+int PMMeshSizeForQuality(int quality) {
+    switch (quality) {
+        case 0: return 64;
+        case 1: return 128;
+        case 2: return 192;
+        default: return 128;
+    }
+}
+
+int PMValidatedSoftCutDuration(int requested) {
+    static const int valid[] = {1, 2, 3, 5};
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 3;
+}
+
+int PMValidatedFpsCap(int requested) {
+    static const int valid[] = {0, 30, 45, 60, 90, 120};
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 60;
+}
+
+int PMValidatedIdleFps(int requested) {
+    static const int valid[] = {15, 30};
+    for (int i = 0; i < (int)(sizeof(valid) / sizeof(valid[0])); i++) {
+        if (valid[i] == requested) return requested;
+    }
+    return 30;
+}
+
+int PMValidatedResolutionScale(int requested) {
+    if (requested >= 0 && requested <= 2) return requested;
+    return 1;
+}
+
+int PMValidatedMeshQuality(int requested) {
+    if (requested >= 0 && requested <= 2) return requested;
+    return 1;
+}
+
+int PMValidatedPresetSortOrder(int requested) {
+    if (requested == 0 || requested == 1) return requested;
+    return 0;
+}
+
