@@ -111,8 +111,18 @@
         }
     }
 
-    [folders sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
-    [presets sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+    if (sortOrder == 1) {
+        [folders sortUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+            return [b localizedCaseInsensitiveCompare:a];
+        }];
+        [presets sortUsingComparator:^NSComparisonResult(NSString *a, NSString *b) {
+            return [b localizedCaseInsensitiveCompare:a];
+        }];
+    } else {
+        [folders sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+        [presets sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    }
 
     for (NSString *folderName in folders) {
         NSString *folderPath = [directoryPath stringByAppendingPathComponent:folderName];

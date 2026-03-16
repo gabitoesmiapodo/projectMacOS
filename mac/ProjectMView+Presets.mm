@@ -593,16 +593,9 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             projectm_playlist_set_preset_switch_failed_event_callback(_playlist, callbackPresetSwitchFailed, (__bridge void *)self);
 
             // Apply sort order
-            // sortOrder values: 0=ascending by filename, 1=descending by filename,
-            //                   2=ascending by full path, 3=descending by full path
             int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
-            projectm_playlist_sort_predicate sortPredicate = (sortOrder <= 1)
-                ? SORT_PREDICATE_FILENAME_ONLY
-                : SORT_PREDICATE_FULL_PATH;
-            projectm_playlist_sort_order sortDirection = (sortOrder == 0 || sortOrder == 2)
-                ? SORT_ORDER_ASCENDING
-                : SORT_ORDER_DESCENDING;
-            projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), sortPredicate, sortDirection);
+            projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
+            projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
 
             uint32_t totalPresets = projectm_playlist_size(_playlist);
             int presetIndex = -1;

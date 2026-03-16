@@ -44,8 +44,8 @@
     [stack addArrangedSubview:folderRow];
     [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files. Leave empty to use the built-in collection."]];
 
-    _sortOrderPopup = [self popupWithTitles:@[@"Name A-Z", @"Name Z-A", @"Path A-Z", @"Path Z-A"]
-                                     values:@[@0, @1, @2, @3]
+    _sortOrderPopup = [self popupWithTitles:@[@"A-Z", @"Z-A"]
+                                     values:@[@0, @1]
                                currentValue:(int)cfg_preset_sort_order
                                      action:@selector(sortOrderChanged:)];
     [stack addArrangedSubview:[self rowWithLabel:@"Sort Order:" control:_sortOrderPopup]];
