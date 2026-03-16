@@ -160,8 +160,3 @@ FOUNDATION_EXPORT int PMValidatedMeshQuality(int requested);
 /// Map preset sort order cfg_int. Valid: 0-3. Default: 0.
 FOUNDATION_EXPORT int PMValidatedPresetSortOrder(int requested);
 
-/// Map retry count cfg_int. Valid: 1, 3, 5, 10. Default: 3.
-FOUNDATION_EXPORT int PMValidatedRetryCount(int requested);
-
-/// Parse comma-separated filter string into array of trimmed non-empty strings.
-FOUNDATION_EXPORT NSArray<NSString *> *PMParsePresetFilter(NSString *filterString);

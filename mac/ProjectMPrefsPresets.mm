@@ -12,8 +12,6 @@
 @implementation ProjectMPrefsPresetsViewController {
     NSTextField *_customPresetsFolderField;
     NSPopUpButton *_sortOrderPopup;
-    NSTextField *_presetFilterField;
-    NSPopUpButton *_retryCountPopup;
 }
 
 - (void)loadView {
@@ -53,21 +51,6 @@
     [stack addArrangedSubview:[self rowWithLabel:@"Sort Order:" control:_sortOrderPopup]];
     [stack addArrangedSubview:[self helpText:@"Order of presets in the browser menu and initial playlist."]];
 
-    _presetFilterField = [[NSTextField alloc] init];
-    _presetFilterField.placeholderString = @"e.g. *warp*, *spiral*";
-    _presetFilterField.stringValue = @(cfg_preset_filter.get().get_ptr());
-    _presetFilterField.target = self;
-    _presetFilterField.action = @selector(presetFilterChanged:);
-    [stack addArrangedSubview:[self rowWithLabel:@"Filter:" control:_presetFilterField]];
-    [stack addArrangedSubview:[self helpText:@"Comma-separated glob patterns to include presets (e.g. *warp*, *spiral*). Leave empty to load all presets."]];
-
-    _retryCountPopup = [self popupWithTitles:@[@"1", @"3", @"5", @"10"]
-                                      values:@[@1, @3, @5, @10]
-                                currentValue:(int)cfg_preset_retry_count
-                                      action:@selector(retryCountChanged:)];
-    [stack addArrangedSubview:[self rowWithLabel:@"Retry Count:" control:_retryCountPopup]];
-    [stack addArrangedSubview:[self helpText:@"How many times to retry loading a broken preset before skipping it."]];
-
     [root addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.topAnchor constraintEqualToAnchor:root.topAnchor],
@@ -97,16 +80,6 @@
 
 - (void)sortOrderChanged:(id)sender {
     cfg_preset_sort_order = PMValidatedPresetSortOrder((int)_sortOrderPopup.selectedItem.tag);
-    PMSettingsDidChange();
-}
-
-- (void)presetFilterChanged:(id)sender {
-    cfg_preset_filter = [_presetFilterField.stringValue UTF8String];
-    PMSettingsDidChange();
-}
-
-- (void)retryCountChanged:(id)sender {
-    cfg_preset_retry_count = PMValidatedRetryCount((int)_retryCountPopup.selectedItem.tag);
     PMSettingsDidChange();
 }
 
