@@ -191,7 +191,10 @@
         self->_isAutoPaused = NO;
         self->_lastRenderTimestamp = 0;
         if (self->_displayLink && !CVDisplayLinkIsRunning(self->_displayLink)) {
-            CVDisplayLinkStart(self->_displayLink);
+            CVReturn status = CVDisplayLinkStart(self->_displayLink);
+            if (status != kCVReturnSuccess) {
+                PMLogError("projectM: CVDisplayLinkStart() failed on click-to-resume from auto-pause.");
+            }
         }
         return;
     }
