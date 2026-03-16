@@ -130,7 +130,7 @@ FOUNDATION_EXPORT BOOL PMShouldDisableCycleFavoritesMenu(NSUInteger favoritesCou
 /// Returns PMCycleFavoritesModeOff for any unrecognized value.
 FOUNDATION_EXPORT PMCycleFavoritesMode PMValidatedCycleFavoritesMode(int rawValue);
 
-/// Map sensitivity cfg_int (0-3) to float value: 0->0.5, 1->1.0, 2->1.5, 3->2.0.
+/// Map sensitivity cfg_int (0-3) to float value: 0->0.2, 1->1.0, 2->3.0, 3->5.0.
 FOUNDATION_EXPORT float PMSensitivityFloatValue(int level);
 
 /// Map duration randomization cfg_int (0-3) to float: 0->0.001, 1->0.25, 2->0.5, 3->1.0.
@@ -154,6 +154,6 @@ FOUNDATION_EXPORT int PMValidatedResolutionScale(int requested);
 /// Map mesh quality cfg_int. Valid: 0, 1, 2. Default: 1.
 FOUNDATION_EXPORT int PMValidatedMeshQuality(int requested);
 
-/// Map preset sort order cfg_int. Valid: 0-3. Default: 0.
+/// Map preset sort order cfg_int. Valid: 0 (A-Z), 1 (Z-A). Default: 0.
 FOUNDATION_EXPORT int PMValidatedPresetSortOrder(int requested);
 
