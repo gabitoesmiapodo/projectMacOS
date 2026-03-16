@@ -593,6 +593,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             projectm_playlist_set_shuffle(_playlist, cfg_preset_shuffle);
 
             _activePresetsRootPath = nil;
+            _presetPathIndex = nil;
 
             BOOL loadedFromZip = NO;
             NSString *activeDataDirPath = [self resolvedDataDirectoryPathUsedZip:&loadedFromZip];
@@ -625,6 +626,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
                 projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
                 projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
+
+                [self buildPresetPathIndex];
 
                 uint32_t totalPresets = projectm_playlist_size(_playlist);
                 int presetIndex = -1;
