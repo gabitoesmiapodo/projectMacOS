@@ -52,6 +52,13 @@
     [stack addArrangedSubview:[self rowWithLabel:@"Sort Order:" control:_sortOrderPopup]];
     [stack addArrangedSubview:[self helpText:@"Order of presets in the browser menu and initial playlist."]];
 
+    [stack addArrangedSubview:[self spacer]];
+    NSButton *reloadButton = [NSButton buttonWithTitle:@"Reload Presets"
+                                                target:self
+                                                action:@selector(reloadPresets:)];
+    [stack addArrangedSubview:reloadButton];
+    [stack addArrangedSubview:[self helpText:@"Force a full reload of presets from the current source."]];
+
     [root addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.topAnchor constraintEqualToAnchor:root.topAnchor],
@@ -81,6 +88,12 @@
 
 - (void)sortOrderChanged:(id)sender {
     cfg_preset_sort_order = PMValidatedPresetSortOrder((int)_sortOrderPopup.selectedItem.tag);
+    PMSettingsDidChange();
+}
+
+- (void)reloadPresets:(id)sender {
+    [[NSFileManager defaultManager] removeItemAtPath:PMPresetIndexCachePath() error:nil];
+    g_forcePresetReload = true;
     PMSettingsDidChange();
 }
 
