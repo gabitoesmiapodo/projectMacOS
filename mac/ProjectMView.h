@@ -32,6 +32,7 @@ extern cfg_string cfg_custom_presets_folder;
 extern cfg_int cfg_preset_sort_order;
 
 extern std::atomic<uint32_t> g_settingsGeneration;
+extern std::atomic<bool> g_forcePresetReload;
 void PMSettingsDidChange(void);
 
 extern NSString * const PMPlaybackStateChangedNotification;
@@ -143,6 +144,8 @@ extern const void *kPresetMenuPathKey;
 - (void)refreshCurrentPresetName:(uint32_t)index;
 /// Handle runtime preset load failure and continue playback.
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
+/// Remove the cached preset index file from disk. Safe to call from any thread.
+- (void)deletePresetIndexCache;
 @end
 
 @interface ProjectMView (Menu)
