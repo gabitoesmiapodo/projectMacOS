@@ -616,6 +616,22 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAutoPaused = NO;
     }
 
+    // Force-reload check: takes priority over folder/sort-order change detection
+    if (g_forcePresetReload.exchange(false)) {
+        PMLog("projectM: reloading presets due to force-reload request");
+        __weak ProjectMView *weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            ProjectMView *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            CGLContextObj ctx = [[strongSelf openGLContext] CGLContextObj];
+            if (ctx) CGLLockContext(ctx);
+            [[strongSelf openGLContext] makeCurrentContext];
+            [strongSelf loadPresetsFromCurrentSource];
+            if (ctx) CGLUnlockContext(ctx);
+        });
+        return;
+    }
+
     // Heavyweight updates: custom folder, sort require playlist reload
     // Detected by comparing current cfg values with cached ivars.
     auto currentFolder = cfg_custom_presets_folder.get();

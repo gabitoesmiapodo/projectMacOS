@@ -67,6 +67,7 @@ cfg_int cfg_preset_sort_order(guid_cfg_preset_sort_order, 0);
 const void *kPresetMenuPathKey = &kPresetMenuPathKey;
 
 std::atomic<uint32_t> g_settingsGeneration(0);
+std::atomic<bool> g_forcePresetReload{false};
 
 namespace {
 

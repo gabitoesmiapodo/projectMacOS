@@ -630,7 +630,115 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
                 projectm_playlist_sort(_playlist, 0, projectm_playlist_size(_playlist), SORT_PREDICATE_FILENAME_ONLY, sortDirection);
 
-                [self buildPresetPathIndex];
+                // Compute fingerprint for preset index cache
+                NSString *fingerprint = nil;
+                {
+                    if (loadedFromZip) {
+                        NSString *zipPath = [self projectMacOSZipPath];
+                        NSTimeInterval zipMtime = 0;
+                        uint64_t zipSize = 0;
+                        if ([self zipFingerprintForPath:zipPath mtime:&zipMtime sizeByte:&zipSize]) {
+                            fingerprint = PMPresetIndexFingerprint(@"zip", zipMtime, zipSize, sortOrder);
+                        }
+                    } else {
+                        NSString *folderPath = _activePresetsRootPath;
+                        if (folderPath.length > 0) {
+                            NSError *statError = nil;
+                            NSDictionary<NSFileAttributeKey, id> *attrs =
+                                [[NSFileManager defaultManager] attributesOfItemAtPath:folderPath error:&statError];
+                            if (attrs && !statError) {
+                                NSTimeInterval folderMtime = [attrs[NSFileModificationDate] timeIntervalSince1970];
+                                // Count .milk files recursively
+                                uint64_t milkCount = 0;
+                                NSDirectoryEnumerator<NSString *> *enumerator =
+                                    [[NSFileManager defaultManager] enumeratorAtPath:folderPath];
+                                for (NSString *entry in enumerator) {
+                                    if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+                                        milkCount++;
+                                    }
+                                }
+                                fingerprint = PMPresetIndexFingerprint(@"folder", folderMtime, milkCount, sortOrder);
+                            }
+                        }
+                    }
+                }
+
+                // Try to read preset index cache
+                BOOL cacheHit = NO;
+                if (fingerprint.length > 0) {
+                    NSString *cachePath = PMPresetIndexCachePath();
+                    NSData *cacheData = [NSData dataWithContentsOfFile:cachePath options:NSDataReadingMappedIfSafe error:nil];
+                    if (cacheData) {
+                        id payload = [NSJSONSerialization JSONObjectWithData:cacheData options:0 error:nil];
+                        if ([payload isKindOfClass:[NSDictionary class]]) {
+                            NSDictionary *cacheDict = (NSDictionary *)payload;
+                            NSNumber *schemaVersion = cacheDict[@"schema_version"];
+                            NSString *cachedFP = cacheDict[@"source_fingerprint"];
+                            NSNumber *cachedCountNum = cacheDict[@"preset_count"];
+                            NSDictionary *indexDict = cacheDict[@"index"];
+
+                            if ([schemaVersion isKindOfClass:[NSNumber class]] && schemaVersion.integerValue == 1 &&
+                                [cachedFP isKindOfClass:[NSString class]] &&
+                                [cachedCountNum isKindOfClass:[NSNumber class]] &&
+                                [indexDict isKindOfClass:[NSDictionary class]]) {
+                                uint32_t playlistSize = projectm_playlist_size(_playlist);
+                                NSUInteger cachedCount = cachedCountNum.unsignedIntegerValue;
+                                if (PMPresetIndexShouldReuseCache(cachedFP, fingerprint, cachedCount, playlistSize)) {
+                                    // Deserialize index
+                                    NSMutableDictionary<NSString *, NSNumber *> *loadedIndex =
+                                        [NSMutableDictionary dictionaryWithCapacity:indexDict.count];
+                                    for (NSString *key in indexDict) {
+                                        id val = indexDict[key];
+                                        if ([key isKindOfClass:[NSString class]] && [val isKindOfClass:[NSNumber class]]) {
+                                            loadedIndex[key] = (NSNumber *)val;
+                                        }
+                                    }
+                                    _presetPathIndex = [loadedIndex copy];
+                                    PMLog("projectM: preset-index cache=hit");
+                                    cacheHit = YES;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!cacheHit) {
+                    [self buildPresetPathIndex];
+
+                    // Write cache after successful build
+                    if (_presetPathIndex != nil && fingerprint.length > 0) {
+                        uint32_t playlistSize = projectm_playlist_size(_playlist);
+                        NSDictionary *cachePayload = @{
+                            @"schema_version": @1,
+                            @"source_fingerprint": fingerprint,
+                            @"preset_count": @(playlistSize),
+                            @"index": _presetPathIndex,
+                        };
+                        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:cachePayload options:0 error:nil];
+                        if (jsonData) {
+                            NSString *cachePath = PMPresetIndexCachePath();
+                            NSFileManager *fm = [NSFileManager defaultManager];
+                            NSString *cacheDir = [cachePath stringByDeletingLastPathComponent];
+                            [fm createDirectoryAtPath:cacheDir withIntermediateDirectories:YES attributes:nil error:nil];
+                            NSString *tmpPath = [cachePath stringByAppendingString:@".tmp"];
+                            [fm removeItemAtPath:tmpPath error:nil];
+                            NSError *writeError = nil;
+                            if ([jsonData writeToFile:tmpPath options:NSDataWritingAtomic error:&writeError]) {
+                                [fm removeItemAtPath:cachePath error:nil];
+                                NSError *moveError = nil;
+                                if (![fm moveItemAtPath:tmpPath toPath:cachePath error:&moveError]) {
+                                    [fm removeItemAtPath:tmpPath error:nil];
+                                    PMLog("projectM: preset-index cache write failed (rename): ",
+                                          [[moveError localizedDescription] UTF8String]);
+                                }
+                            } else {
+                                [fm removeItemAtPath:tmpPath error:nil];
+                                PMLog("projectM: preset-index cache write failed: ",
+                                      [[writeError localizedDescription] UTF8String]);
+                            }
+                        }
+                    }
+                }
 
                 uint32_t totalPresets = projectm_playlist_size(_playlist);
                 int presetIndex = -1;
@@ -675,6 +783,10 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         PMLogError("projectM: unknown C++ exception in loadPresetsFromCurrentSource");
         [self loadDefaultPresetFallback];
     }
+}
+
+- (void)deletePresetIndexCache {
+    [[NSFileManager defaultManager] removeItemAtPath:PMPresetIndexCachePath() error:nil];
 }
 
 - (NSString *)presetsDirectoryPath {
