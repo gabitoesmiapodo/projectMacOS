@@ -645,21 +645,27 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _lastCustomFolder = currentFolder;
         _lastSortOrder = currentSortOrder;
         PMLog("projectM: reloading presets due to source change");
+        __weak ProjectMView *weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
-            CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+            ProjectMView *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            CGLContextObj ctx = [[strongSelf openGLContext] CGLContextObj];
             if (ctx) CGLLockContext(ctx);
-            [[self openGLContext] makeCurrentContext];
-            [self loadPresetsFromCurrentSource];
+            [[strongSelf openGLContext] makeCurrentContext];
+            [strongSelf loadPresetsFromCurrentSource];
             if (ctx) CGLUnlockContext(ctx);
         });
     } else if (sortChanged) {
         _lastSortOrder = currentSortOrder;
         PMLog("projectM: re-sorting presets due to sort order change");
+        __weak ProjectMView *weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
-            CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+            ProjectMView *strongSelf = weakSelf;
+            if (!strongSelf) return;
+            CGLContextObj ctx = [[strongSelf openGLContext] CGLContextObj];
             if (ctx) CGLLockContext(ctx);
-            [[self openGLContext] makeCurrentContext];
-            [self resortCurrentPlaylist];
+            [[strongSelf openGLContext] makeCurrentContext];
+            [strongSelf resortCurrentPlaylist];
             if (ctx) CGLUnlockContext(ctx);
         });
     }

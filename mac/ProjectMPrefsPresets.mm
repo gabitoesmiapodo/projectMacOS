@@ -34,7 +34,7 @@
     [folderLabel setContentHuggingPriority:NSLayoutPriorityDefaultHigh
                            forOrientation:NSLayoutConstraintOrientationHorizontal];
     _customPresetsFolderField = [[NSTextField alloc] init];
-    _customPresetsFolderField.placeholderString = @"Default: /Documents/foobar2000/projectMacOS.zip";
+    _customPresetsFolderField.placeholderString = @"Default: ~/Documents/foobar2000/projectMacOS.zip";
     _customPresetsFolderField.stringValue = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.target = self;
     _customPresetsFolderField.action = @selector(customPresetsFolderChanged:);
