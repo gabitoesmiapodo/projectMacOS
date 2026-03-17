@@ -723,7 +723,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                             NSString *tmpPath = [cachePath stringByAppendingString:@".tmp"];
                             [fm removeItemAtPath:tmpPath error:nil];
                             NSError *writeError = nil;
-                            if ([jsonData writeToFile:tmpPath options:NSDataWritingAtomic error:&writeError]) {
+                            if ([jsonData writeToFile:tmpPath options:0 error:&writeError]) {
                                 [fm removeItemAtPath:cachePath error:nil];
                                 NSError *moveError = nil;
                                 if (![fm moveItemAtPath:tmpPath toPath:cachePath error:&moveError]) {

@@ -144,7 +144,7 @@ extern const void *kPresetMenuPathKey;
 - (void)refreshCurrentPresetName:(uint32_t)index;
 /// Handle runtime preset load failure and continue playback.
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
-/// Remove the cached preset index file from disk. Safe to call from any thread.
+/// Remove the cached preset index file from disk. Call from the main thread or a dedicated serial queue; do not call concurrently with cache read/write operations.
 - (void)deletePresetIndexCache;
 @end
 
