@@ -2,7 +2,6 @@
 #import "ProjectMView.h"
 #import "ProjectMMenuLogic.h"
 #import "ProjectMPrefsParent.h"
-#import <UniformTypeIdentifiers/UTCoreTypes.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
