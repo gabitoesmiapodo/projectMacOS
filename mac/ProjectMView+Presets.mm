@@ -483,7 +483,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             return nil;
         } else {
             PMLogError("projectM: custom presets folder not found: ", [customPath UTF8String]);
-            if (outError) *outError = @"Folder not found.";
+            if (outError) *outError = @"Source not found.";
             return nil;
         }
     }
@@ -830,6 +830,12 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     projectm_playlist_sort(_playlist, 0, count, SORT_PREDICATE_FILENAME_ONLY, sortDirection);
 
     [self buildPresetPathIndex];
+
+    // Refresh current preset identity (index changed after sort)
+    uint32_t currentPos = projectm_playlist_get_position(_playlist);
+    if (currentPos < count) {
+        [self refreshCurrentPresetName:currentPos];
+    }
 
     // Invalidate on-disk cache (fingerprint includes sort order)
     [[NSFileManager defaultManager] removeItemAtPath:PMPresetIndexCachePath() error:nil];
