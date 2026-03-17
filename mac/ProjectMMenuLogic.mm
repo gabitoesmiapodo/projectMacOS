@@ -406,3 +406,7 @@ int PMValidatedPresetSortOrder(int requested) {
     return 0;
 }
 
+NSString *PMNormalizePath(NSString *path) {
+    return [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+}
+

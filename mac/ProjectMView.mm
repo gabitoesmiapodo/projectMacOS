@@ -55,6 +55,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     if (_playlist) {
         projectm_playlist_destroy(_playlist);
         _playlist = NULL;
+        _presetPathIndex = nil;
     }
 
     if (_projectM) {
@@ -630,6 +631,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         dispatch_async(dispatch_get_main_queue(), ^{
             CGLContextObj ctx = [[self openGLContext] CGLContextObj];
             if (ctx) CGLLockContext(ctx);
+            [[self openGLContext] makeCurrentContext];
             [self loadPresetsFromCurrentSource];
             if (ctx) CGLUnlockContext(ctx);
         });

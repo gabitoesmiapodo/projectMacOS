@@ -157,3 +157,6 @@ FOUNDATION_EXPORT int PMValidatedMeshQuality(int requested);
 /// Map preset sort order cfg_int. Valid: 0 (A-Z), 1 (Z-A). Default: 0.
 FOUNDATION_EXPORT int PMValidatedPresetSortOrder(int requested);
 
+/// Return a normalized path: standardized then symlinks resolved.
+FOUNDATION_EXPORT NSString *PMNormalizePath(NSString *path);
+
