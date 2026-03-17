@@ -14,6 +14,7 @@
     NSTextField *_customPresetsFolderField;
     NSPopUpButton *_sortOrderPopup;
     NSButton *_browseButton;
+    NSButton *_resetButton;
     NSButton *_reloadButton;
     NSTextField *_sourceErrorLabel;
 }
@@ -42,7 +43,10 @@
     _browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
     [_browseButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
                              forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, _browseButton]];
+    _resetButton = [NSButton buttonWithTitle:@"Reset" target:self action:@selector(resetPresetSource:)];
+    [_resetButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
+                            forOrientation:NSLayoutConstraintOrientationHorizontal];
+    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, _browseButton, _resetButton]];
     folderRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     folderRow.spacing = 6;
     [stack addArrangedSubview:folderRow];
@@ -104,6 +108,7 @@
     [self updateSourceErrorLabel:nil];
     if (![path isEqualToString:previousPath]) {
         _browseButton.enabled = NO;
+        _resetButton.enabled = NO;
         _reloadButton.enabled = NO;
         _reloadButton.title = @"Reloading\u2026";
     }
@@ -121,8 +126,21 @@
     PMSettingsDidChange();
 }
 
+- (void)resetPresetSource:(id)sender {
+    _customPresetsFolderField.stringValue = @"";
+    cfg_custom_presets_folder = "";
+    [self updateSourceErrorLabel:nil];
+    _browseButton.enabled = NO;
+    _resetButton.enabled = NO;
+    _reloadButton.enabled = NO;
+    _reloadButton.title = @"Reloading\u2026";
+    g_forcePresetReload = true;
+    PMSettingsDidChange();
+}
+
 - (void)reloadPresets:(id)sender {
     _browseButton.enabled = NO;
+    _resetButton.enabled = NO;
     _reloadButton.enabled = NO;
     _reloadButton.title = @"Reloading\u2026";
     [self updateSourceErrorLabel:nil];
@@ -136,6 +154,7 @@
 
 - (void)presetsDidReload:(NSNotification *)note {
     _browseButton.enabled = YES;
+    _resetButton.enabled = YES;
     _reloadButton.enabled = YES;
     _reloadButton.title = @"Reload Presets";
     NSString *error = note.userInfo[@"error"];
