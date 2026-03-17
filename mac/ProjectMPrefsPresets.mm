@@ -2,6 +2,7 @@
 #import "ProjectMView.h"
 #import "ProjectMMenuLogic.h"
 #import "ProjectMPrefsParent.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -92,6 +93,7 @@
     panel.canChooseFiles = YES;
     panel.canChooseDirectories = YES;
     panel.allowsMultipleSelection = NO;
+    panel.allowedContentTypes = @[UTTypeZIP, UTTypeFolder];
     panel.message = @"Select a folder containing .milk preset files, or a .zip archive";
     if ([panel runModal] != NSModalResponseOK) return;
     NSString *path = panel.URL.path;
