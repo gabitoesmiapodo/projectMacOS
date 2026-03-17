@@ -557,21 +557,24 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         return;
     }
 
-    NSMutableDictionary<NSString *, NSNumber *> *index = [NSMutableDictionary dictionaryWithCapacity:count];
     char **items = projectm_playlist_items(_playlist, 0, count);
-    if (items) {
-        for (uint32_t i = 0; items[i]; ++i) {
-            NSString *path = @(items[i]);
-            NSString *normalized = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
-            if (normalized.length > 0) {
-                index[normalized] = @(i);
-            }
-        }
-        projectm_playlist_free_string_array(items);
+    if (!items) {
+        _presetPathIndex = nil;
+        return;
     }
 
+    NSMutableDictionary<NSString *, NSNumber *> *index = [NSMutableDictionary dictionaryWithCapacity:count];
+    for (uint32_t i = 0; items[i]; ++i) {
+        NSString *path = @(items[i]);
+        NSString *normalized = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+        if (normalized.length > 0) {
+            index[normalized] = @(i);
+        }
+    }
+    projectm_playlist_free_string_array(items);
+
     _presetPathIndex = [index copy];
-    PMLog("projectM: built preset path index with ", pfc::format_int(count).c_str(), " entries");
+    PMLog("projectM: built preset path index with ", pfc::format_int(index.count).c_str(), " entries");
 }
 
 - (void)loadPresetsFromCurrentSource {
