@@ -35,11 +35,11 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 }
 
 - (NSString *)zipExtractionDirectoryPath {
-    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content"];
+    return PMZipExtractionCachePath();
 }
 
 - (NSString *)zipExtractionMetadataPath {
-    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content-meta.json"];
+    return PMZipExtractionMetadataPath();
 }
 
 - (void)cleanupExtractedPresetCache {
@@ -803,13 +803,15 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             [self loadDefaultPresetFallback];
         }
         @finally {
-            NSMutableDictionary *info = [NSMutableDictionary dictionary];
+            NSDictionary *userInfo;
             if (errorString.length > 0) {
-                info[@"error"] = errorString;
                 auto custom = cfg_custom_presets_folder.get();
-                if (custom.length() > 0) info[@"failedPath"] = @(custom.get_ptr());
+                NSString *failedPath = custom.length() > 0 ? @(custom.get_ptr()) : nil;
+                userInfo = failedPath ? @{@"error": errorString, @"failedPath": failedPath}
+                                      : @{@"error": errorString};
+            } else {
+                userInfo = @{};
             }
-            NSDictionary *userInfo = [info copy];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [[NSNotificationCenter defaultCenter] postNotificationName:PMPresetsDidReloadNotification
                                                                     object:nil
