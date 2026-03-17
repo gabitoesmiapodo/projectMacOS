@@ -12,6 +12,8 @@
 @implementation ProjectMPrefsPresetsViewController {
     NSTextField *_customPresetsFolderField;
     NSPopUpButton *_sortOrderPopup;
+    NSButton *_reloadButton;
+    NSTextField *_sourceErrorLabel;
 }
 
 - (void)loadView {
@@ -44,6 +46,14 @@
     [stack addArrangedSubview:folderRow];
     [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files or a .zip archive. Leave empty to use the built-in collection."]];
 
+    _sourceErrorLabel = [NSTextField labelWithString:@""];
+    _sourceErrorLabel.textColor = [NSColor systemRedColor];
+    _sourceErrorLabel.font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+    _sourceErrorLabel.hidden = YES;
+    _sourceErrorLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    _sourceErrorLabel.maximumNumberOfLines = 0;
+    [stack insertArrangedSubview:_sourceErrorLabel atIndex:2];
+
     _sortOrderPopup = [self popupWithTitles:@[@"A-Z", @"Z-A"]
                                      values:@[@0, @1]
                                currentValue:(int)cfg_preset_sort_order
@@ -52,10 +62,10 @@
     [stack addArrangedSubview:[self helpText:@"Order of presets in the browser menu and initial playlist."]];
 
     [stack addArrangedSubview:[self spacer]];
-    NSButton *reloadButton = [NSButton buttonWithTitle:@"Reload Presets"
-                                                target:self
-                                                action:@selector(reloadPresets:)];
-    [stack addArrangedSubview:reloadButton];
+    _reloadButton = [NSButton buttonWithTitle:@"Reload Presets"
+                                       target:self
+                                       action:@selector(reloadPresets:)];
+    [stack addArrangedSubview:_reloadButton];
     [stack addArrangedSubview:[self helpText:@"Force a full reload of presets from the current source. Also clears the extracted presets cache."]];
 
     [root addSubview:stack];
@@ -64,7 +74,17 @@
         [stack.leadingAnchor constraintEqualToAnchor:root.leadingAnchor],
         [stack.trailingAnchor constraintEqualToAnchor:root.trailingAnchor],
     ]];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(presetsDidReload:)
+                                                 name:PMPresetsDidReloadNotification
+                                               object:nil];
+
     self.view = root;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)browsePresetsFolder:(id)sender {
@@ -77,10 +97,12 @@
     NSString *path = panel.URL.path;
     _customPresetsFolderField.stringValue = path ?: @"";
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
+    [self updateSourceErrorLabel:nil];
     PMSettingsDidChange();
 }
 
 - (void)customPresetsFolderChanged:(id)sender {
+    [self updateSourceErrorLabel:nil];
     cfg_custom_presets_folder = [_customPresetsFolderField.stringValue UTF8String];
     PMSettingsDidChange();
 }
@@ -91,12 +113,31 @@
 }
 
 - (void)reloadPresets:(id)sender {
+    _reloadButton.enabled = NO;
+    _reloadButton.title = @"Reloading\u2026";
+    [self updateSourceErrorLabel:nil];
     NSFileManager *fm = [NSFileManager defaultManager];
     [fm removeItemAtPath:PMPresetIndexCachePath() error:nil];
     [fm removeItemAtPath:PMZipExtractionCachePath() error:nil];
     [fm removeItemAtPath:PMZipExtractionMetadataPath() error:nil];
     g_forcePresetReload = true;
     PMSettingsDidChange();
+}
+
+- (void)presetsDidReload:(NSNotification *)note {
+    _reloadButton.enabled = YES;
+    _reloadButton.title = @"Reload Presets";
+    [self updateSourceErrorLabel:note.userInfo[@"error"]];
+}
+
+- (void)updateSourceErrorLabel:(NSString *)error {
+    if (error.length > 0) {
+        _sourceErrorLabel.stringValue = error;
+        _sourceErrorLabel.hidden = NO;
+    } else {
+        _sourceErrorLabel.stringValue = @"";
+        _sourceErrorLabel.hidden = YES;
+    }
 }
 
 @end

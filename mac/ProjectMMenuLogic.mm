@@ -461,3 +461,5 @@ BOOL PMPresetIndexShouldReuseCache(NSString *cachedFingerprint,
     return cachedCount == (NSUInteger)playlistSize;
 }
 
+NSNotificationName const PMPresetsDidReloadNotification = @"PMPresetsDidReloadNotification";
+

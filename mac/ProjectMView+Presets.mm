@@ -446,8 +446,9 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     }
 }
 
-- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip {
+- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip outError:(NSString **)outError {
     if (usedZip) *usedZip = NO;
+    if (outError) *outError = nil;
 
     // Check custom presets source first (folder or .zip)
     auto customFolder = cfg_custom_presets_folder.get();
@@ -466,6 +467,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 return extractedPath;
             }
             PMLogError("projectM: custom presets ZIP extraction failed: ", [customPath UTF8String]);
+            if (outError) *outError = @"ZIP contains no usable presets.";
+            return nil;
         } else if (exists && isDir) {
             // Custom folder source
             NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:customPath];
@@ -476,8 +479,12 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 }
             }
             PMLogError("projectM: custom presets folder contains no .milk files: ", [customPath UTF8String]);
+            if (outError) *outError = @"Folder contains no .milk preset files.";
+            return nil;
         } else {
             PMLogError("projectM: custom presets folder not found: ", [customPath UTF8String]);
+            if (outError) *outError = @"Folder not found.";
+            return nil;
         }
     }
 
@@ -590,6 +597,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 
 - (void)loadPresetsFromCurrentSource {
     try {
+        NSString *errorString = nil;
         @try {
             if (!_projectM) return;
 
@@ -610,7 +618,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             _presetPathIndex = nil;
 
             BOOL loadedFromZip = NO;
-            NSString *activeDataDirPath = [self resolvedDataDirectoryPathUsedZip:&loadedFromZip];
+            NSString *activeDataDirPath = [self resolvedDataDirectoryPathUsedZip:&loadedFromZip outError:&errorString];
 
             if (activeDataDirPath.length > 0) {
                 PMLog("projectM: loading presets from ", loadedFromZip ? "ZIP source" : "folder source");
@@ -793,6 +801,14 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         @catch (NSException *exception) {
             PMLogError("projectM: Objective-C exception in loadPresetsFromCurrentSource: ", [[exception description] UTF8String]);
             [self loadDefaultPresetFallback];
+        }
+        @finally {
+            NSDictionary *userInfo = errorString ? @{@"error": errorString} : @{};
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [[NSNotificationCenter defaultCenter] postNotificationName:PMPresetsDidReloadNotification
+                                                                    object:nil
+                                                                  userInfo:userInfo];
+            });
         }
     } catch (const std::exception &e) {
         PMLogError("projectM: C++ exception in loadPresetsFromCurrentSource: ", e.what());
