@@ -98,12 +98,15 @@
     panel.message = @"Select a folder containing .milk preset files, or a .zip archive";
     if ([panel runModal] != NSModalResponseOK) return;
     NSString *path = panel.URL.path;
+    NSString *previousPath = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.stringValue = path ?: @"";
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
     [self updateSourceErrorLabel:nil];
-    _browseButton.enabled = NO;
-    _reloadButton.enabled = NO;
-    _reloadButton.title = @"Reloading\u2026";
+    if (![path isEqualToString:previousPath]) {
+        _browseButton.enabled = NO;
+        _reloadButton.enabled = NO;
+        _reloadButton.title = @"Reloading\u2026";
+    }
     PMSettingsDidChange();
 }
 
@@ -138,8 +141,11 @@
     NSString *error = note.userInfo[@"error"];
     [self updateSourceErrorLabel:error];
     if (error.length > 0) {
-        _customPresetsFolderField.stringValue = @"";
-        cfg_custom_presets_folder = "";
+        NSString *failedPath = note.userInfo[@"failedPath"];
+        if ([_customPresetsFolderField.stringValue isEqualToString:failedPath ?: @""]) {
+            _customPresetsFolderField.stringValue = @"";
+            cfg_custom_presets_folder = "";
+        }
     }
 }
 
