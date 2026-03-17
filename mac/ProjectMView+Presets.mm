@@ -449,14 +449,25 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
 - (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip {
     if (usedZip) *usedZip = NO;
 
-    // Check custom presets folder first
+    // Check custom presets source first (folder or .zip)
     auto customFolder = cfg_custom_presets_folder.get();
     NSString *customPath = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
     if (customPath.length > 0) {
         NSFileManager *fm = [NSFileManager defaultManager];
         BOOL isDir = NO;
-        if ([fm fileExistsAtPath:customPath isDirectory:&isDir] && isDir) {
-            // Verify it has at least one .milk file
+        BOOL exists = [fm fileExistsAtPath:customPath isDirectory:&isDir];
+
+        if (exists && !isDir && [[customPath.pathExtension lowercaseString] isEqualToString:@"zip"]) {
+            // Custom ZIP source
+            NSString *extractedPath = [self prepareDataDirectoryFromZipAtPath:customPath];
+            if (extractedPath.length > 0) {
+                if (usedZip) *usedZip = YES;
+                PMLog("projectM: using custom presets ZIP: ", [customPath UTF8String]);
+                return extractedPath;
+            }
+            PMLogError("projectM: custom presets ZIP extraction failed: ", [customPath UTF8String]);
+        } else if (exists && isDir) {
+            // Custom folder source
             NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:customPath];
             for (NSString *entry in enumerator) {
                 if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
@@ -634,10 +645,18 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 NSString *fingerprint = nil;
                 {
                     if (loadedFromZip) {
-                        NSString *zipPath = [self projectMacOSZipPath];
+                        NSString *zipPathForFingerprint = nil;
+                        {
+                            auto customFolder = cfg_custom_presets_folder.get();
+                            NSString *cp = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
+                            if (cp.length > 0 && [[cp.pathExtension lowercaseString] isEqualToString:@"zip"])
+                                zipPathForFingerprint = [cp stringByStandardizingPath];
+                            else
+                                zipPathForFingerprint = [self projectMacOSZipPath];
+                        }
                         NSTimeInterval zipMtime = 0;
                         uint64_t zipSize = 0;
-                        if ([self zipFingerprintForPath:zipPath mtime:&zipMtime sizeByte:&zipSize]) {
+                        if ([self zipFingerprintForPath:zipPathForFingerprint mtime:&zipMtime sizeByte:&zipSize]) {
                             fingerprint = PMPresetIndexFingerprint(@"zip", zipMtime, zipSize, sortOrder);
                         }
                     } else {
