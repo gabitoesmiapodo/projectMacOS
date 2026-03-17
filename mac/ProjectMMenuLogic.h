@@ -165,6 +165,14 @@ FOUNDATION_EXPORT NSString *PMNormalizePath(NSString *path);
 /// Expands ~ to the home directory; does not guarantee the file exists.
 FOUNDATION_EXPORT NSString *PMPresetIndexCachePath(void);
 
+/// Return the filesystem path for the ZIP extraction cache directory.
+/// Expands ~ to the home directory; does not guarantee the directory exists.
+FOUNDATION_EXPORT NSString *PMZipExtractionCachePath(void);
+
+/// Return the filesystem path for the ZIP extraction cache metadata file.
+/// Expands ~ to the home directory; does not guarantee the file exists.
+FOUNDATION_EXPORT NSString *PMZipExtractionMetadataPath(void);
+
 /// Return a fingerprint string encoding source type, mtime, size/count, and sort order.
 /// sourceType must be @"zip" or @"folder"; returns @"" for any other value.
 FOUNDATION_EXPORT NSString *PMPresetIndexFingerprint(NSString *sourceType,

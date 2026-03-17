@@ -516,6 +516,19 @@
     XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/preset-index.json"]);
 }
 
+- (void)testZipExtractionCachePathReturnsExpectedPath {
+    NSString *path = PMZipExtractionCachePath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/zip-content"]);
+    XCTAssertFalse([path hasSuffix:@".json"]);
+}
+
+- (void)testZipExtractionMetadataPathReturnsExpectedPath {
+    NSString *path = PMZipExtractionMetadataPath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/zip-content-meta.json"]);
+}
+
 - (void)testPresetIndexFingerprintZipSourceStartsWithZipPrefix {
     NSString *fp = PMPresetIndexFingerprint(@"zip", 1710000000.0, 52428800ULL, 0);
     XCTAssertTrue([fp hasPrefix:@"zip:"]);
