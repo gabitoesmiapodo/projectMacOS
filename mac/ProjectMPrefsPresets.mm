@@ -13,6 +13,7 @@
 @implementation ProjectMPrefsPresetsViewController {
     NSTextField *_customPresetsFolderField;
     NSPopUpButton *_sortOrderPopup;
+    NSButton *_browseButton;
     NSButton *_reloadButton;
     NSTextField *_sourceErrorLabel;
 }
@@ -38,10 +39,10 @@
     _customPresetsFolderField.action = @selector(customPresetsFolderChanged:);
     [_customPresetsFolderField setContentHuggingPriority:NSLayoutPriorityDefaultLow
                                         forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSButton *browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
-    [browseButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
-                            forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, browseButton]];
+    _browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
+    [_browseButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
+                             forOrientation:NSLayoutConstraintOrientationHorizontal];
+    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, _browseButton]];
     folderRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     folderRow.spacing = 6;
     [stack addArrangedSubview:folderRow];
@@ -100,6 +101,7 @@
     _customPresetsFolderField.stringValue = path ?: @"";
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
     [self updateSourceErrorLabel:nil];
+    _browseButton.enabled = NO;
     _reloadButton.enabled = NO;
     _reloadButton.title = @"Reloading\u2026";
     PMSettingsDidChange();
@@ -117,6 +119,7 @@
 }
 
 - (void)reloadPresets:(id)sender {
+    _browseButton.enabled = NO;
     _reloadButton.enabled = NO;
     _reloadButton.title = @"Reloading\u2026";
     [self updateSourceErrorLabel:nil];
@@ -129,6 +132,7 @@
 }
 
 - (void)presetsDidReload:(NSNotification *)note {
+    _browseButton.enabled = YES;
     _reloadButton.enabled = YES;
     _reloadButton.title = @"Reload Presets";
     [self updateSourceErrorLabel:note.userInfo[@"error"]];
