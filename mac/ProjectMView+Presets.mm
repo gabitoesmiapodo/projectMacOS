@@ -703,6 +703,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 }
 
                 if (!cacheHit) {
+                    PMLog("projectM: preset-index cache=miss");
                     [self buildPresetPathIndex];
 
                     // Write cache after successful build

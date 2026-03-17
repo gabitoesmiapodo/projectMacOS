@@ -144,7 +144,10 @@ extern const void *kPresetMenuPathKey;
 - (void)refreshCurrentPresetName:(uint32_t)index;
 /// Handle runtime preset load failure and continue playback.
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
-/// Remove the cached preset index file from disk. Call from the main thread or a dedicated serial queue; do not call concurrently with cache read/write operations.
+/// Remove the cached preset index file from disk, forcing a full rebuild on next load.
+/// Intended for callers that hold a ProjectMView reference (e.g., context menu actions).
+/// For preference page actions without a view reference, call PMPresetIndexCachePath() directly.
+/// Call from the main thread or a dedicated serial queue; do not call concurrently with cache read/write operations.
 - (void)deletePresetIndexCache;
 @end
 
