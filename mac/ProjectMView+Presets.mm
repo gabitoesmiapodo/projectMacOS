@@ -646,14 +646,12 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 {
                     if (loadedFromZip) {
                         NSString *zipPathForFingerprint = nil;
-                        {
-                            auto customFolder = cfg_custom_presets_folder.get();
-                            NSString *cp = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
-                            if (cp.length > 0 && [[cp.pathExtension lowercaseString] isEqualToString:@"zip"])
-                                zipPathForFingerprint = [cp stringByStandardizingPath];
-                            else
-                                zipPathForFingerprint = [self projectMacOSZipPath];
-                        }
+                        auto customFolder = cfg_custom_presets_folder.get();
+                        NSString *cp = customFolder.length() > 0 ? @(customFolder.get_ptr()) : nil;
+                        if (cp.length > 0 && [[cp.pathExtension lowercaseString] isEqualToString:@"zip"])
+                            zipPathForFingerprint = [cp stringByStandardizingPath];
+                        else
+                            zipPathForFingerprint = [self projectMacOSZipPath];
                         NSTimeInterval zipMtime = 0;
                         uint64_t zipSize = 0;
                         if ([self zipFingerprintForPath:zipPathForFingerprint mtime:&zipMtime sizeByte:&zipSize]) {
