@@ -138,6 +138,8 @@ extern const void *kPresetMenuPathKey;
 - (void)loadDefaultPresetFallback;
 /// Load presets from ZIP/folder source into the projectM playlist.
 - (void)loadPresetsFromCurrentSource;
+/// Re-sort the current playlist in place and rebuild the path index.
+- (void)resortCurrentPlaylist;
 /// Return active directory used to populate the preset browser menu.
 - (NSString *)presetsDirectoryPath;
 /// Return display-ready name for current preset.

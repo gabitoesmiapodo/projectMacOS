@@ -618,6 +618,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
     // Force-reload check: takes priority over folder/sort-order change detection
     if (g_forcePresetReload.exchange(false)) {
+        _lastCustomFolder = cfg_custom_presets_folder.get();
+        _lastSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
         PMLog("projectM: reloading presets due to force-reload request");
         __weak ProjectMView *weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -632,23 +634,32 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         return;
     }
 
-    // Heavyweight updates: custom folder, sort require playlist reload
-    // Detected by comparing current cfg values with cached ivars.
+    // Heavyweight updates: custom folder requires full playlist reload.
+    // Sort-only changes re-sort the existing playlist without re-resolving the source.
     auto currentFolder = cfg_custom_presets_folder.get();
     int currentSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+    BOOL folderChanged = strcmp(currentFolder.get_ptr(), _lastCustomFolder.get_ptr()) != 0;
+    BOOL sortChanged = currentSortOrder != _lastSortOrder;
 
-    if (strcmp(currentFolder.get_ptr(), _lastCustomFolder.get_ptr()) != 0 ||
-        currentSortOrder != _lastSortOrder) {
+    if (folderChanged) {
         _lastCustomFolder = currentFolder;
         _lastSortOrder = currentSortOrder;
-        PMLog("projectM: reloading presets due to settings change");
-        // Dispatch to main thread to avoid blocking the CVDisplayLink thread with file I/O
-        // (ZIP extraction and filesystem enumeration in loadPresetsFromCurrentSource).
+        PMLog("projectM: reloading presets due to source change");
         dispatch_async(dispatch_get_main_queue(), ^{
             CGLContextObj ctx = [[self openGLContext] CGLContextObj];
             if (ctx) CGLLockContext(ctx);
             [[self openGLContext] makeCurrentContext];
             [self loadPresetsFromCurrentSource];
+            if (ctx) CGLUnlockContext(ctx);
+        });
+    } else if (sortChanged) {
+        _lastSortOrder = currentSortOrder;
+        PMLog("projectM: re-sorting presets due to sort order change");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            CGLContextObj ctx = [[self openGLContext] CGLContextObj];
+            if (ctx) CGLLockContext(ctx);
+            [[self openGLContext] makeCurrentContext];
+            [self resortCurrentPlaylist];
             if (ctx) CGLUnlockContext(ctx);
         });
     }

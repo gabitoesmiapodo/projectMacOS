@@ -803,15 +803,7 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             [self loadDefaultPresetFallback];
         }
         @finally {
-            NSDictionary *userInfo;
-            if (errorString.length > 0) {
-                auto custom = cfg_custom_presets_folder.get();
-                NSString *failedPath = custom.length() > 0 ? @(custom.get_ptr()) : nil;
-                userInfo = failedPath ? @{@"error": errorString, @"failedPath": failedPath}
-                                      : @{@"error": errorString};
-            } else {
-                userInfo = @{};
-            }
+            NSDictionary *userInfo = errorString.length > 0 ? @{@"error": errorString} : @{};
             dispatch_async(dispatch_get_main_queue(), ^{
                 [[NSNotificationCenter defaultCenter] postNotificationName:PMPresetsDidReloadNotification
                                                                     object:nil
@@ -825,6 +817,24 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
         PMLogError("projectM: unknown C++ exception in loadPresetsFromCurrentSource");
         [self loadDefaultPresetFallback];
     }
+}
+
+- (void)resortCurrentPlaylist {
+    if (!_playlist) return;
+
+    uint32_t count = projectm_playlist_size(_playlist);
+    if (count == 0) return;
+
+    int sortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
+    projectm_playlist_sort_order sortDirection = (sortOrder == 0) ? SORT_ORDER_ASCENDING : SORT_ORDER_DESCENDING;
+    projectm_playlist_sort(_playlist, 0, count, SORT_PREDICATE_FILENAME_ONLY, sortDirection);
+
+    [self buildPresetPathIndex];
+
+    // Invalidate on-disk cache (fingerprint includes sort order)
+    [[NSFileManager defaultManager] removeItemAtPath:PMPresetIndexCachePath() error:nil];
+
+    PMLog("projectM: re-sorted ", pfc::format_int(count).c_str(), " presets");
 }
 
 - (void)deletePresetIndexCache {
