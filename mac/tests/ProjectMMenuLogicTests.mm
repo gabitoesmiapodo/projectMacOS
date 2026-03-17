@@ -507,4 +507,60 @@
     XCTAssertEqual(PMValidatedPresetSortOrder(99), 0);
 }
 
+// MARK: - Preset index cache helpers
+
+- (void)testPresetIndexCachePathReturnsNonEmptyPathEndingInIndexJson {
+    NSString *path = PMPresetIndexCachePath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path hasSuffix:@"preset-index.json"]);
+}
+
+- (void)testPresetIndexFingerprintZipSourceStartsWithZipPrefix {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1234567890.5, 5000ULL, 0);
+    XCTAssertTrue([fp hasPrefix:@"zip:"]);
+}
+
+- (void)testPresetIndexFingerprintFolderSourceStartsWithFolderPrefix {
+    NSString *fp = PMPresetIndexFingerprint(@"folder", 1234567890.5, 300ULL, 1);
+    XCTAssertTrue([fp hasPrefix:@"folder:"]);
+}
+
+- (void)testPresetIndexFingerprintUnknownSourceReturnsEmpty {
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(@"other", 0, 0, 0), @"");
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(nil,     0, 0, 0), @"");
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(@"",     0, 0, 0), @"");
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsTrueWhenFingerprintsAndCountsMatch {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertTrue(PMPresetIndexShouldReuseCache(fp, fp, 50U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnFingerprintMismatch {
+    NSString *fp1 = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    NSString *fp2 = PMPresetIndexFingerprint(@"zip", 2000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp1, fp2, 50U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnCountMismatch {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, fp, 49U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnEmptyOrNilFingerprints {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(@"", fp, 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, @"", 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(nil, fp, 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, nil, 50U, 50));
+}
+
+- (void)testNormalizePathReturnsSameResultForSameInputRepeatedly {
+    NSString *path = NSHomeDirectory();
+    NSString *first  = PMNormalizePath(path);
+    NSString *second = PMNormalizePath(path);
+    XCTAssertEqualObjects(first, second);
+    XCTAssertTrue(first.length > 0);
+}
+
 @end
