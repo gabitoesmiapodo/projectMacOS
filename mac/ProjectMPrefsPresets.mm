@@ -2,6 +2,7 @@
 #import "ProjectMView.h"
 #import "ProjectMMenuLogic.h"
 #import "ProjectMPrefsParent.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -25,12 +26,11 @@
     stack.edgeInsets = NSEdgeInsetsMake(20, 16, 20, 16);
 
     // Three-part folder row: label (natural width) + text field (stretches) + Browse button (natural width)
-    NSTextField *folderLabel = [NSTextField labelWithString:@"Presets Folder:"];
+    NSTextField *folderLabel = [NSTextField labelWithString:@"Presets Source:"];
     [folderLabel setContentHuggingPriority:NSLayoutPriorityDefaultHigh
                            forOrientation:NSLayoutConstraintOrientationHorizontal];
     _customPresetsFolderField = [[NSTextField alloc] init];
-    _customPresetsFolderField.placeholderString = [NSString stringWithFormat:@"Default: %@",
-        [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/foobar2000/projectMacOS.zip"]];
+    _customPresetsFolderField.placeholderString = @"Default: /Documents/foobar2000/projectMacOS.zip";
     _customPresetsFolderField.stringValue = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.target = self;
     _customPresetsFolderField.action = @selector(customPresetsFolderChanged:);
@@ -43,7 +43,7 @@
     folderRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     folderRow.spacing = 6;
     [stack addArrangedSubview:folderRow];
-    [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files. Leave empty to use the built-in collection."]];
+    [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files or a .zip archive. Leave empty to use the built-in collection."]];
 
     _sortOrderPopup = [self popupWithTitles:@[@"A-Z", @"Z-A"]
                                      values:@[@0, @1]
@@ -70,10 +70,11 @@
 
 - (void)browsePresetsFolder:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel];
-    panel.canChooseFiles = NO;
+    panel.canChooseFiles = YES;
     panel.canChooseDirectories = YES;
     panel.allowsMultipleSelection = NO;
-    panel.message = @"Select a folder containing .milk preset files";
+    panel.allowedContentTypes = @[UTTypeZIP];
+    panel.message = @"Select a folder containing .milk preset files, or a .zip archive";
     if ([panel runModal] != NSModalResponseOK) return;
     NSString *path = panel.URL.path;
     _customPresetsFolderField.stringValue = path ?: @"";
