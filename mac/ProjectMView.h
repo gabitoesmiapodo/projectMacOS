@@ -131,7 +131,9 @@ extern const void *kPresetMenuPathKey;
 /// Extract preset data ZIP into cache and return resolved root.
 - (NSString *)prepareDataDirectoryFromZipAtPath:(NSString *)zipPath;
 /// Pick active data source path and report whether ZIP was used.
-- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip;
+/// Returns nil without falling through to the default source if a custom source is set but invalid;
+/// outError is set to a human-readable description in that case.
+- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip outError:(NSString **)outError;
 /// Load built-in fallback preset when external data is unavailable.
 - (void)loadDefaultPresetFallback;
 /// Load presets from ZIP/folder source into the projectM playlist.

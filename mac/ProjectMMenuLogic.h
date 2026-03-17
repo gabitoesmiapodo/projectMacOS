@@ -187,3 +187,7 @@ FOUNDATION_EXPORT BOOL PMPresetIndexShouldReuseCache(NSString *cachedFingerprint
                                                      NSUInteger cachedCount,
                                                      uint32_t playlistSize);
 
+/// Posted on the main thread at the end of every loadPresetsFromCurrentSource invocation.
+/// userInfo contains @"error": NSString on failure, empty dict on success.
+FOUNDATION_EXPORT NSNotificationName const PMPresetsDidReloadNotification;
+
