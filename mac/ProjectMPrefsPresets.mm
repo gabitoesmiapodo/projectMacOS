@@ -57,7 +57,7 @@
                                                 target:self
                                                 action:@selector(reloadPresets:)];
     [stack addArrangedSubview:reloadButton];
-    [stack addArrangedSubview:[self helpText:@"Force a full reload of presets from the current source."]];
+    [stack addArrangedSubview:[self helpText:@"Force a full reload of presets from the current source. Also clears the extracted presets cache."]];
 
     [root addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
@@ -92,7 +92,10 @@
 }
 
 - (void)reloadPresets:(id)sender {
-    [[NSFileManager defaultManager] removeItemAtPath:PMPresetIndexCachePath() error:nil];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    [fm removeItemAtPath:PMPresetIndexCachePath() error:nil];
+    [fm removeItemAtPath:PMZipExtractionCachePath() error:nil];
+    [fm removeItemAtPath:PMZipExtractionMetadataPath() error:nil];
     g_forcePresetReload = true;
     PMSettingsDidChange();
 }

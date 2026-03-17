@@ -433,6 +433,14 @@ NSString *PMPresetIndexCachePath(void) {
     return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/preset-index.json"];
 }
 
+NSString *PMZipExtractionCachePath(void) {
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content"];
+}
+
+NSString *PMZipExtractionMetadataPath(void) {
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content-meta.json"];
+}
+
 NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {
     if ([sourceType isEqualToString:@"zip"]) {
         return [NSString stringWithFormat:@"zip:%lld:%llu:%d", (long long)mtime, sizeOrCount, sortOrder];
