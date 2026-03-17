@@ -157,15 +157,7 @@
     _resetButton.enabled = YES;
     _reloadButton.enabled = YES;
     _reloadButton.title = @"Reload Presets";
-    NSString *error = note.userInfo[@"error"];
-    [self updateSourceErrorLabel:error];
-    if (error.length > 0) {
-        NSString *failedPath = note.userInfo[@"failedPath"];
-        if ([_customPresetsFolderField.stringValue isEqualToString:failedPath ?: @""]) {
-            _customPresetsFolderField.stringValue = @"";
-            cfg_custom_presets_folder = "";
-        }
-    }
+    [self updateSourceErrorLabel:note.userInfo[@"error"]];
 }
 
 - (void)updateSourceErrorLabel:(NSString *)error {
