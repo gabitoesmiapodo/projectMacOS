@@ -513,6 +513,7 @@
     NSString *path = PMPresetIndexCachePath();
     XCTAssertTrue(path.length > 0);
     XCTAssertTrue([path hasSuffix:@"preset-index.json"]);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/preset-index.json"]);
 }
 
 - (void)testPresetIndexFingerprintZipSourceStartsWithZipPrefix {
@@ -561,6 +562,14 @@
     NSString *second = PMNormalizePath(path);
     XCTAssertEqualObjects(first, second);
     XCTAssertTrue(first.length > 0);
+}
+
+- (void)testNormalizePathReturnsDifferentResultsForDifferentInputs {
+    NSString *path1 = @"/tmp";
+    NSString *path2 = @"/var";
+    NSString *result1 = PMNormalizePath(path1);
+    NSString *result2 = PMNormalizePath(path2);
+    XCTAssertNotEqualObjects(result1, result2);
 }
 
 @end

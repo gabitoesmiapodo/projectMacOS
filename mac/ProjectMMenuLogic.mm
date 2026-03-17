@@ -407,19 +407,25 @@ int PMValidatedPresetSortOrder(int requested) {
 }
 
 NSString *PMNormalizePath(NSString *path) {
-    static NSMutableDictionary<NSString *, NSString *> *memo = nil;
+    if (path.length == 0) return @"";
+
+    static NSMutableDictionary<NSString *, NSString *> *memo;
+    static os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         memo = [NSMutableDictionary dictionary];
     });
 
-    if (path == nil) return @"";
-
+    os_unfair_lock_lock(&lock);
     NSString *cached = memo[path];
+    os_unfair_lock_unlock(&lock);
     if (cached) return cached;
 
     NSString *resolved = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
-    memo[path] = resolved;
+
+    os_unfair_lock_lock(&lock);
+    if (!memo[path]) memo[path] = resolved;  // double-check to avoid redundant write
+    os_unfair_lock_unlock(&lock);
     return resolved;
 }
 
@@ -429,10 +435,10 @@ NSString *PMPresetIndexCachePath(void) {
 
 NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {
     if ([sourceType isEqualToString:@"zip"]) {
-        return [NSString stringWithFormat:@"zip:%f:%llu:%d", mtime, sizeOrCount, sortOrder];
+        return [NSString stringWithFormat:@"zip:%lld:%llu:%d", (long long)mtime, sizeOrCount, sortOrder];
     }
     if ([sourceType isEqualToString:@"folder"]) {
-        return [NSString stringWithFormat:@"folder:%f:%llu:%d", mtime, sizeOrCount, sortOrder];
+        return [NSString stringWithFormat:@"folder:%lld:%llu:%d", (long long)mtime, sizeOrCount, sortOrder];
     }
     return @"";
 }
