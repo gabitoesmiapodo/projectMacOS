@@ -803,7 +803,13 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             [self loadDefaultPresetFallback];
         }
         @finally {
-            NSDictionary *userInfo = errorString ? @{@"error": errorString} : @{};
+            NSMutableDictionary *info = [NSMutableDictionary dictionary];
+            if (errorString.length > 0) {
+                info[@"error"] = errorString;
+                auto custom = cfg_custom_presets_folder.get();
+                if (custom.length() > 0) info[@"failedPath"] = @(custom.get_ptr());
+            }
+            NSDictionary *userInfo = [info copy];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [[NSNotificationCenter defaultCenter] postNotificationName:PMPresetsDidReloadNotification
                                                                     object:nil
