@@ -98,6 +98,8 @@
     _customPresetsFolderField.stringValue = path ?: @"";
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
     [self updateSourceErrorLabel:nil];
+    _reloadButton.enabled = NO;
+    _reloadButton.title = @"Reloading\u2026";
     PMSettingsDidChange();
 }
 
