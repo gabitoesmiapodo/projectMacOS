@@ -407,6 +407,43 @@ int PMValidatedPresetSortOrder(int requested) {
 }
 
 NSString *PMNormalizePath(NSString *path) {
-    return [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+    static NSMutableDictionary<NSString *, NSString *> *memo = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        memo = [NSMutableDictionary dictionary];
+    });
+
+    if (path == nil) return @"";
+
+    NSString *cached = memo[path];
+    if (cached) return cached;
+
+    NSString *resolved = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+    memo[path] = resolved;
+    return resolved;
+}
+
+NSString *PMPresetIndexCachePath(void) {
+    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/preset-index.json"];
+}
+
+NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {
+    if ([sourceType isEqualToString:@"zip"]) {
+        return [NSString stringWithFormat:@"zip:%f:%llu:%d", mtime, sizeOrCount, sortOrder];
+    }
+    if ([sourceType isEqualToString:@"folder"]) {
+        return [NSString stringWithFormat:@"folder:%f:%llu:%d", mtime, sizeOrCount, sortOrder];
+    }
+    return @"";
+}
+
+BOOL PMPresetIndexShouldReuseCache(NSString *cachedFingerprint,
+                                   NSString *currentFingerprint,
+                                   NSUInteger cachedCount,
+                                   uint32_t playlistSize) {
+    if (cachedFingerprint.length == 0) return NO;
+    if (currentFingerprint.length == 0) return NO;
+    if (![cachedFingerprint isEqualToString:currentFingerprint]) return NO;
+    return cachedCount == (NSUInteger)playlistSize;
 }
 
