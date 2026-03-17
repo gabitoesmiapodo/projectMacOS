@@ -26,7 +26,7 @@
     if (!_projectM || !_playlist) return;
     if (!presetPath || presetPath.length == 0) return;
 
-    NSString *targetPath = [[presetPath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+    NSString *targetPath = PMNormalizePath(presetPath);
 
     // O(1) dictionary lookup
     NSNumber *cachedIndex = _presetPathIndex[targetPath];
@@ -48,7 +48,7 @@
         char **items = projectm_playlist_items(_playlist, 0, totalPresets);
         for (uint32_t i = 0; items && items[i]; ++i) {
             NSString *candidatePath = @(items[i]);
-            NSString *normalizedCandidate = [[candidatePath stringByStandardizingPath] stringByResolvingSymlinksInPath];
+            NSString *normalizedCandidate = PMNormalizePath(candidatePath);
             if ([normalizedCandidate isEqualToString:targetPath]) {
                 selectedIndex = i;
                 foundIndex = YES;
