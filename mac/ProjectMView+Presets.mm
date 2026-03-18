@@ -470,16 +470,20 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
             if (outError) *outError = @"ZIP contains no usable presets.";
             return nil;
         } else if (exists && isDir) {
-            // Custom folder source
-            NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:customPath];
-            for (NSString *entry in enumerator) {
-                if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+            // Custom folder source -- must contain a Presets/ subfolder with .milk files
+            NSString *presetsSubdir = [customPath stringByAppendingPathComponent:@"Presets"];
+            BOOL presetsIsDir = NO;
+            if ([fm fileExistsAtPath:presetsSubdir isDirectory:&presetsIsDir] && presetsIsDir) {
+                if ([self isDirectoryPresetContainer:presetsSubdir]) {
                     PMLog("projectM: using custom presets folder: ", [customPath UTF8String]);
                     return [customPath stringByStandardizingPath];
                 }
+                PMLogError("projectM: custom Presets/ subfolder contains no .milk files: ", [customPath UTF8String]);
+                if (outError) *outError = @"Presets folder contains no .milk files.";
+                return nil;
             }
-            PMLogError("projectM: custom presets folder contains no .milk files: ", [customPath UTF8String]);
-            if (outError) *outError = @"Folder contains no .milk preset files.";
+            PMLogError("projectM: custom folder has no Presets/ subfolder: ", [customPath UTF8String]);
+            if (outError) *outError = @"No Presets folder found.";
             return nil;
         } else {
             PMLogError("projectM: custom presets folder not found: ", [customPath UTF8String]);
