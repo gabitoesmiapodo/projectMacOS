@@ -507,4 +507,84 @@
     XCTAssertEqual(PMValidatedPresetSortOrder(99), 0);
 }
 
+// MARK: - Preset index cache helpers
+
+- (void)testPresetIndexCachePathReturnsNonEmptyPathEndingInIndexJson {
+    NSString *path = PMPresetIndexCachePath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path hasSuffix:@"preset-index.json"]);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/preset-index.json"]);
+}
+
+- (void)testZipExtractionCachePathReturnsExpectedPath {
+    NSString *path = PMZipExtractionCachePath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/zip-content"]);
+    XCTAssertFalse([path hasSuffix:@".json"]);
+}
+
+- (void)testZipExtractionMetadataPathReturnsExpectedPath {
+    NSString *path = PMZipExtractionMetadataPath();
+    XCTAssertTrue(path.length > 0);
+    XCTAssertTrue([path containsString:@"Library/Caches/projectMacOS/zip-content-meta.json"]);
+}
+
+- (void)testPresetIndexFingerprintZipSourceStartsWithZipPrefix {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1710000000.0, 52428800ULL, 0);
+    XCTAssertTrue([fp hasPrefix:@"zip:"]);
+    XCTAssertEqualObjects(fp, @"zip:1710000000.000000000:52428800:0");
+}
+
+- (void)testPresetIndexFingerprintFolderSourceStartsWithFolderPrefix {
+    NSString *fp = PMPresetIndexFingerprint(@"folder", 1710000000.0, 9791ULL, 1);
+    XCTAssertTrue([fp hasPrefix:@"folder:"]);
+    XCTAssertEqualObjects(fp, @"folder:1710000000.000000000:9791:1");
+}
+
+- (void)testPresetIndexFingerprintUnknownSourceReturnsEmpty {
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(@"other", 0, 0, 0), @"");
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(nil,     0, 0, 0), @"");
+    XCTAssertEqualObjects(PMPresetIndexFingerprint(@"",     0, 0, 0), @"");
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsTrueWhenFingerprintsAndCountsMatch {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertTrue(PMPresetIndexShouldReuseCache(fp, fp, 50U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnFingerprintMismatch {
+    NSString *fp1 = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    NSString *fp2 = PMPresetIndexFingerprint(@"zip", 2000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp1, fp2, 50U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnCountMismatch {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, fp, 49U, 50));
+}
+
+- (void)testPresetIndexShouldReuseCacheReturnsFalseOnEmptyOrNilFingerprints {
+    NSString *fp = PMPresetIndexFingerprint(@"zip", 1000.0, 100ULL, 0);
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(@"", fp, 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, @"", 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(nil, fp, 50U, 50));
+    XCTAssertFalse(PMPresetIndexShouldReuseCache(fp, nil, 50U, 50));
+}
+
+- (void)testNormalizePathReturnsSameResultForSameInputRepeatedly {
+    NSString *path = NSHomeDirectory();
+    NSString *first  = PMNormalizePath(path);
+    NSString *second = PMNormalizePath(path);
+    XCTAssertEqualObjects(first, second);
+    XCTAssertTrue(first.length > 0);
+}
+
+- (void)testNormalizePathReturnsDifferentResultsForDifferentInputs {
+    NSString *path1 = @"/tmp";
+    NSString *path2 = @"/var";
+    NSString *result1 = PMNormalizePath(path1);
+    NSString *result2 = PMNormalizePath(path2);
+    XCTAssertNotEqualObjects(result1, result2);
+}
+
 @end

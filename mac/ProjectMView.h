@@ -32,6 +32,7 @@ extern cfg_string cfg_custom_presets_folder;
 extern cfg_int cfg_preset_sort_order;
 
 extern std::atomic<uint32_t> g_settingsGeneration;
+extern std::atomic<bool> g_forcePresetReload;
 void PMSettingsDidChange(void);
 
 extern NSString * const PMPlaybackStateChangedNotification;
@@ -130,11 +131,15 @@ extern const void *kPresetMenuPathKey;
 /// Extract preset data ZIP into cache and return resolved root.
 - (NSString *)prepareDataDirectoryFromZipAtPath:(NSString *)zipPath;
 /// Pick active data source path and report whether ZIP was used.
-- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip;
+/// Returns nil without falling through to the default source if a custom source is set but invalid;
+/// outError is set to a human-readable description in that case.
+- (NSString *)resolvedDataDirectoryPathUsedZip:(BOOL *)usedZip outError:(NSString **)outError;
 /// Load built-in fallback preset when external data is unavailable.
 - (void)loadDefaultPresetFallback;
 /// Load presets from ZIP/folder source into the projectM playlist.
 - (void)loadPresetsFromCurrentSource;
+/// Re-sort the current playlist in place and rebuild the path index.
+- (void)resortCurrentPlaylist;
 /// Return active directory used to populate the preset browser menu.
 - (NSString *)presetsDirectoryPath;
 /// Return display-ready name for current preset.
@@ -143,6 +148,11 @@ extern const void *kPresetMenuPathKey;
 - (void)refreshCurrentPresetName:(uint32_t)index;
 /// Handle runtime preset load failure and continue playback.
 - (void)handlePresetLoadFailureForFilename:(NSString *)presetFilename message:(NSString *)message;
+/// Remove the cached preset index file from disk, forcing a full rebuild on next load.
+/// Intended for callers that hold a ProjectMView reference (e.g., context menu actions).
+/// For preference page actions without a view reference, call PMPresetIndexCachePath() directly.
+/// Call from the main thread or a dedicated serial queue; do not call concurrently with cache read/write operations.
+- (void)deletePresetIndexCache;
 @end
 
 @interface ProjectMView (Menu)

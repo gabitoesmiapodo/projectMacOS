@@ -158,5 +158,36 @@ FOUNDATION_EXPORT int PMValidatedMeshQuality(int requested);
 FOUNDATION_EXPORT int PMValidatedPresetSortOrder(int requested);
 
 /// Return a normalized path: standardized then symlinks resolved.
+/// Results are memoized per raw path for the process lifetime.
 FOUNDATION_EXPORT NSString *PMNormalizePath(NSString *path);
+
+/// Return the filesystem path for the persistent preset index cache file.
+/// Expands ~ to the home directory; does not guarantee the file exists.
+FOUNDATION_EXPORT NSString *PMPresetIndexCachePath(void);
+
+/// Return the filesystem path for the ZIP extraction cache directory.
+/// Expands ~ to the home directory; does not guarantee the directory exists.
+FOUNDATION_EXPORT NSString *PMZipExtractionCachePath(void);
+
+/// Return the filesystem path for the ZIP extraction cache metadata file.
+/// Expands ~ to the home directory; does not guarantee the file exists.
+FOUNDATION_EXPORT NSString *PMZipExtractionMetadataPath(void);
+
+/// Return a fingerprint string encoding source type, mtime, size/count, and sort order.
+/// sourceType must be @"zip" or @"folder"; returns @"" for any other value.
+FOUNDATION_EXPORT NSString *PMPresetIndexFingerprint(NSString *sourceType,
+                                                     NSTimeInterval mtime,
+                                                     uint64_t sizeOrCount,
+                                                     int sortOrder);
+
+/// Return YES when the cached preset index can be reused without rebuilding.
+/// Requires non-empty matching fingerprints and cachedCount equal to playlistSize.
+FOUNDATION_EXPORT BOOL PMPresetIndexShouldReuseCache(NSString *cachedFingerprint,
+                                                     NSString *currentFingerprint,
+                                                     NSUInteger cachedCount,
+                                                     uint32_t playlistSize);
+
+/// Posted on the main thread at the end of every loadPresetsFromCurrentSource invocation.
+/// userInfo contains @"error": NSString when a custom source is invalid; empty dict otherwise.
+FOUNDATION_EXPORT NSNotificationName const PMPresetsDidReloadNotification;
 

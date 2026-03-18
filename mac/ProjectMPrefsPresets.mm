@@ -2,6 +2,7 @@
 #import "ProjectMView.h"
 #import "ProjectMMenuLogic.h"
 #import "ProjectMPrefsParent.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -12,6 +13,10 @@
 @implementation ProjectMPrefsPresetsViewController {
     NSTextField *_customPresetsFolderField;
     NSPopUpButton *_sortOrderPopup;
+    NSButton *_browseButton;
+    NSButton *_resetButton;
+    NSButton *_reloadButton;
+    NSTextField *_sourceErrorLabel;
 }
 
 - (void)loadView {
@@ -25,25 +30,35 @@
     stack.edgeInsets = NSEdgeInsetsMake(20, 16, 20, 16);
 
     // Three-part folder row: label (natural width) + text field (stretches) + Browse button (natural width)
-    NSTextField *folderLabel = [NSTextField labelWithString:@"Presets Folder:"];
+    NSTextField *folderLabel = [NSTextField labelWithString:@"Presets Source:"];
     [folderLabel setContentHuggingPriority:NSLayoutPriorityDefaultHigh
                            forOrientation:NSLayoutConstraintOrientationHorizontal];
     _customPresetsFolderField = [[NSTextField alloc] init];
-    _customPresetsFolderField.placeholderString = [NSString stringWithFormat:@"Default: %@",
-        [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/foobar2000/projectMacOS.zip"]];
+    _customPresetsFolderField.placeholderString = @"Default: ~/Documents/foobar2000/projectMacOS.zip";
     _customPresetsFolderField.stringValue = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.target = self;
     _customPresetsFolderField.action = @selector(customPresetsFolderChanged:);
     [_customPresetsFolderField setContentHuggingPriority:NSLayoutPriorityDefaultLow
                                         forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSButton *browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
-    [browseButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
+    _browseButton = [NSButton buttonWithTitle:@"Browse..." target:self action:@selector(browsePresetsFolder:)];
+    [_browseButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
+                             forOrientation:NSLayoutConstraintOrientationHorizontal];
+    _resetButton = [NSButton buttonWithTitle:@"Reset" target:self action:@selector(resetPresetSource:)];
+    [_resetButton setContentHuggingPriority:NSLayoutPriorityDefaultHigh
                             forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, browseButton]];
+    NSStackView *folderRow = [NSStackView stackViewWithViews:@[folderLabel, _customPresetsFolderField, _browseButton, _resetButton]];
     folderRow.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     folderRow.spacing = 6;
     [stack addArrangedSubview:folderRow];
-    [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files. Leave empty to use the built-in collection."]];
+    [stack addArrangedSubview:[self helpText:@"Override the default preset source with a folder of .milk files or a .zip archive. Leave empty to use the built-in collection."]];
+
+    _sourceErrorLabel = [NSTextField labelWithString:@""];
+    _sourceErrorLabel.textColor = [NSColor systemRedColor];
+    _sourceErrorLabel.font = [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+    _sourceErrorLabel.hidden = YES;
+    _sourceErrorLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    _sourceErrorLabel.maximumNumberOfLines = 0;
+    [stack insertArrangedSubview:_sourceErrorLabel atIndex:2];
 
     _sortOrderPopup = [self popupWithTitles:@[@"A-Z", @"Z-A"]
                                      values:@[@0, @1]
@@ -52,36 +67,107 @@
     [stack addArrangedSubview:[self rowWithLabel:@"Sort Order:" control:_sortOrderPopup]];
     [stack addArrangedSubview:[self helpText:@"Order of presets in the browser menu and initial playlist."]];
 
+    [stack addArrangedSubview:[self spacer]];
+    _reloadButton = [NSButton buttonWithTitle:@"Reload Presets"
+                                       target:self
+                                       action:@selector(reloadPresets:)];
+    [stack addArrangedSubview:_reloadButton];
+    [stack addArrangedSubview:[self helpText:@"Force a full reload of presets from the current source. Also clears the extracted presets cache."]];
+
     [root addSubview:stack];
     [NSLayoutConstraint activateConstraints:@[
         [stack.topAnchor constraintEqualToAnchor:root.topAnchor],
         [stack.leadingAnchor constraintEqualToAnchor:root.leadingAnchor],
         [stack.trailingAnchor constraintEqualToAnchor:root.trailingAnchor],
     ]];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(presetsDidReload:)
+                                                 name:PMPresetsDidReloadNotification
+                                               object:nil];
+
     self.view = root;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)browsePresetsFolder:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel];
-    panel.canChooseFiles = NO;
+    panel.canChooseFiles = YES;
     panel.canChooseDirectories = YES;
     panel.allowsMultipleSelection = NO;
-    panel.message = @"Select a folder containing .milk preset files";
+    panel.allowedContentTypes = @[UTTypeZIP, UTTypeFolder];
+    panel.message = @"Select a folder containing .milk preset files, or a .zip archive";
     if ([panel runModal] != NSModalResponseOK) return;
     NSString *path = panel.URL.path;
+    NSString *previousPath = @(cfg_custom_presets_folder.get().get_ptr());
     _customPresetsFolderField.stringValue = path ?: @"";
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
+    [self updateSourceErrorLabel:nil];
+    if (![path isEqualToString:previousPath]) {
+        [self setPresetsButtonsEnabled:NO];
+    }
     PMSettingsDidChange();
 }
 
 - (void)customPresetsFolderChanged:(id)sender {
-    cfg_custom_presets_folder = [_customPresetsFolderField.stringValue UTF8String];
+    [self updateSourceErrorLabel:nil];
+    NSString *newValue = _customPresetsFolderField.stringValue;
+    NSString *previousValue = @(cfg_custom_presets_folder.get().get_ptr());
+    cfg_custom_presets_folder = [newValue UTF8String];
+    if (![newValue isEqualToString:previousValue]) {
+        [self setPresetsButtonsEnabled:NO];
+    }
     PMSettingsDidChange();
 }
 
 - (void)sortOrderChanged:(id)sender {
     cfg_preset_sort_order = PMValidatedPresetSortOrder((int)_sortOrderPopup.selectedItem.tag);
     PMSettingsDidChange();
+}
+
+- (void)resetPresetSource:(id)sender {
+    _customPresetsFolderField.stringValue = @"";
+    cfg_custom_presets_folder = "";
+    [self updateSourceErrorLabel:nil];
+    [self setPresetsButtonsEnabled:NO];
+    g_forcePresetReload = true;
+    PMSettingsDidChange();
+}
+
+- (void)reloadPresets:(id)sender {
+    [self setPresetsButtonsEnabled:NO];
+    [self updateSourceErrorLabel:nil];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    [fm removeItemAtPath:PMPresetIndexCachePath() error:nil];
+    [fm removeItemAtPath:PMZipExtractionCachePath() error:nil];
+    [fm removeItemAtPath:PMZipExtractionMetadataPath() error:nil];
+    g_forcePresetReload = true;
+    PMSettingsDidChange();
+}
+
+- (void)presetsDidReload:(NSNotification *)note {
+    [self setPresetsButtonsEnabled:YES];
+    [self updateSourceErrorLabel:note.userInfo[@"error"]];
+}
+
+- (void)setPresetsButtonsEnabled:(BOOL)enabled {
+    _browseButton.enabled = enabled;
+    _resetButton.enabled = enabled;
+    _reloadButton.enabled = enabled;
+    _reloadButton.title = enabled ? @"Reload Presets" : @"Reloading\u2026";
+}
+
+- (void)updateSourceErrorLabel:(NSString *)error {
+    if (error.length > 0) {
+        _sourceErrorLabel.stringValue = error;
+        _sourceErrorLabel.hidden = NO;
+    } else {
+        _sourceErrorLabel.stringValue = @"";
+        _sourceErrorLabel.hidden = YES;
+    }
 }
 
 @end

@@ -1,4 +1,5 @@
 #import "ProjectMMenuLogic.h"
+#import <os/lock.h>
 
 static const NSUInteger PMMenuTitleMaxLength = 32;
 static const NSUInteger PMMenuTitleEllipsisLength = 3;
@@ -407,6 +408,68 @@ int PMValidatedPresetSortOrder(int requested) {
 }
 
 NSString *PMNormalizePath(NSString *path) {
-    return [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+    if (path.length == 0) return @"";
+
+    static NSMutableDictionary<NSString *, NSString *> *memo;
+    static os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        memo = [NSMutableDictionary dictionary];
+    });
+
+    os_unfair_lock_lock(&lock);
+    NSString *cached = memo[path];
+    os_unfair_lock_unlock(&lock);
+    if (cached) return cached;
+
+    NSString *resolved = [[path stringByStandardizingPath] stringByResolvingSymlinksInPath];
+
+    os_unfair_lock_lock(&lock);
+    if (!memo[path]) memo[path] = resolved;  // double-check to avoid redundant write
+    os_unfair_lock_unlock(&lock);
+    return resolved;
 }
+
+static NSString *PMCachesSubpath(NSString *subpath) {
+    static NSString *cachesRoot;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cachesRoot = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS"];
+    });
+    return [cachesRoot stringByAppendingPathComponent:subpath];
+}
+
+NSString *PMPresetIndexCachePath(void) {
+    return PMCachesSubpath(@"preset-index.json");
+}
+
+NSString *PMZipExtractionCachePath(void) {
+    return PMCachesSubpath(@"zip-content");
+}
+
+NSString *PMZipExtractionMetadataPath(void) {
+    return PMCachesSubpath(@"zip-content-meta.json");
+}
+
+NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {
+    if ([sourceType isEqualToString:@"zip"]) {
+        return [NSString stringWithFormat:@"zip:%.9f:%llu:%d", mtime, sizeOrCount, sortOrder];
+    }
+    if ([sourceType isEqualToString:@"folder"]) {
+        return [NSString stringWithFormat:@"folder:%.9f:%llu:%d", mtime, sizeOrCount, sortOrder];
+    }
+    return @"";
+}
+
+BOOL PMPresetIndexShouldReuseCache(NSString *cachedFingerprint,
+                                   NSString *currentFingerprint,
+                                   NSUInteger cachedCount,
+                                   uint32_t playlistSize) {
+    if (cachedFingerprint.length == 0) return NO;
+    if (currentFingerprint.length == 0) return NO;
+    if (![cachedFingerprint isEqualToString:currentFingerprint]) return NO;
+    return cachedCount == (NSUInteger)playlistSize;
+}
+
+NSNotificationName const PMPresetsDidReloadNotification = @"PMPresetsDidReloadNotification";
 
