@@ -114,7 +114,12 @@
 
 - (void)customPresetsFolderChanged:(id)sender {
     [self updateSourceErrorLabel:nil];
-    cfg_custom_presets_folder = [_customPresetsFolderField.stringValue UTF8String];
+    NSString *newValue = _customPresetsFolderField.stringValue;
+    NSString *previousValue = @(cfg_custom_presets_folder.get().get_ptr());
+    cfg_custom_presets_folder = [newValue UTF8String];
+    if (![newValue isEqualToString:previousValue]) {
+        [self setPresetsButtonsEnabled:NO];
+    }
     PMSettingsDidChange();
 }
 
