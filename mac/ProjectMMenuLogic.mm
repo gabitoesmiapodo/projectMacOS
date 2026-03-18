@@ -1,4 +1,5 @@
 #import "ProjectMMenuLogic.h"
+#import <os/lock.h>
 
 static const NSUInteger PMMenuTitleMaxLength = 32;
 static const NSUInteger PMMenuTitleEllipsisLength = 3;
@@ -452,10 +453,10 @@ NSString *PMZipExtractionMetadataPath(void) {
 
 NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {
     if ([sourceType isEqualToString:@"zip"]) {
-        return [NSString stringWithFormat:@"zip:%lld:%llu:%d", (long long)mtime, sizeOrCount, sortOrder];
+        return [NSString stringWithFormat:@"zip:%.9f:%llu:%d", mtime, sizeOrCount, sortOrder];
     }
     if ([sourceType isEqualToString:@"folder"]) {
-        return [NSString stringWithFormat:@"folder:%lld:%llu:%d", (long long)mtime, sizeOrCount, sortOrder];
+        return [NSString stringWithFormat:@"folder:%.9f:%llu:%d", mtime, sizeOrCount, sortOrder];
     }
     return @"";
 }

@@ -673,16 +673,8 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                                 [[NSFileManager defaultManager] attributesOfItemAtPath:folderPath error:&statError];
                             if (attrs && !statError) {
                                 NSTimeInterval folderMtime = [attrs[NSFileModificationDate] timeIntervalSince1970];
-                                // Count .milk files recursively
-                                uint64_t milkCount = 0;
-                                NSDirectoryEnumerator<NSString *> *enumerator =
-                                    [[NSFileManager defaultManager] enumeratorAtPath:folderPath];
-                                for (NSString *entry in enumerator) {
-                                    if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
-                                        milkCount++;
-                                    }
-                                }
-                                fingerprint = PMPresetIndexFingerprint(@"folder", folderMtime, milkCount, sortOrder);
+                                uint64_t presetCount = projectm_playlist_size(_playlist);
+                                fingerprint = PMPresetIndexFingerprint(@"folder", folderMtime, presetCount, sortOrder);
                             }
                         }
                     }
