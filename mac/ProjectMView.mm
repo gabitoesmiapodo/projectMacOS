@@ -629,13 +629,13 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
         _isAutoPaused = NO;
     }
 
-    // Force-reload check: takes priority over folder/sort-order change detection
+    // Force-reload check: takes priority over folder/sort-order change detection.
+    // Does NOT return early -- other settings (resolution scale, mesh, etc.) still need applying.
     if (g_forcePresetReload.exchange(false)) {
         _lastCustomFolder = cfg_custom_presets_folder.get();
         _lastSortOrder = PMValidatedPresetSortOrder((int)cfg_preset_sort_order);
         PMLog("projectM: reloading presets due to force-reload request");
         [self dispatchGLAction:^(ProjectMView *v) { [v loadPresetsFromCurrentSource]; }];
-        return;
     }
 
     // Heavyweight updates: custom folder requires full playlist reload.

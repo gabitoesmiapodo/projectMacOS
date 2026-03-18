@@ -532,13 +532,13 @@
 - (void)testPresetIndexFingerprintZipSourceStartsWithZipPrefix {
     NSString *fp = PMPresetIndexFingerprint(@"zip", 1710000000.0, 52428800ULL, 0);
     XCTAssertTrue([fp hasPrefix:@"zip:"]);
-    XCTAssertEqualObjects(fp, @"zip:1710000000:52428800:0");
+    XCTAssertEqualObjects(fp, @"zip:1710000000.000000000:52428800:0");
 }
 
 - (void)testPresetIndexFingerprintFolderSourceStartsWithFolderPrefix {
     NSString *fp = PMPresetIndexFingerprint(@"folder", 1710000000.0, 9791ULL, 1);
     XCTAssertTrue([fp hasPrefix:@"folder:"]);
-    XCTAssertEqualObjects(fp, @"folder:1710000000:9791:1");
+    XCTAssertEqualObjects(fp, @"folder:1710000000.000000000:9791:1");
 }
 
 - (void)testPresetIndexFingerprintUnknownSourceReturnsEmpty {
