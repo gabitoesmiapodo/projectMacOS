@@ -429,16 +429,25 @@ NSString *PMNormalizePath(NSString *path) {
     return resolved;
 }
 
+static NSString *PMCachesSubpath(NSString *subpath) {
+    static NSString *cachesRoot;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cachesRoot = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS"];
+    });
+    return [cachesRoot stringByAppendingPathComponent:subpath];
+}
+
 NSString *PMPresetIndexCachePath(void) {
-    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/preset-index.json"];
+    return PMCachesSubpath(@"preset-index.json");
 }
 
 NSString *PMZipExtractionCachePath(void) {
-    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content"];
+    return PMCachesSubpath(@"zip-content");
 }
 
 NSString *PMZipExtractionMetadataPath(void) {
-    return [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches/projectMacOS/zip-content-meta.json"];
+    return PMCachesSubpath(@"zip-content-meta.json");
 }
 
 NSString *PMPresetIndexFingerprint(NSString *sourceType, NSTimeInterval mtime, uint64_t sizeOrCount, int sortOrder) {

@@ -107,10 +107,7 @@
     cfg_custom_presets_folder = path ? [path UTF8String] : "";
     [self updateSourceErrorLabel:nil];
     if (![path isEqualToString:previousPath]) {
-        _browseButton.enabled = NO;
-        _resetButton.enabled = NO;
-        _reloadButton.enabled = NO;
-        _reloadButton.title = @"Reloading\u2026";
+        [self setPresetsButtonsEnabled:NO];
     }
     PMSettingsDidChange();
 }
@@ -130,19 +127,13 @@
     _customPresetsFolderField.stringValue = @"";
     cfg_custom_presets_folder = "";
     [self updateSourceErrorLabel:nil];
-    _browseButton.enabled = NO;
-    _resetButton.enabled = NO;
-    _reloadButton.enabled = NO;
-    _reloadButton.title = @"Reloading\u2026";
+    [self setPresetsButtonsEnabled:NO];
     g_forcePresetReload = true;
     PMSettingsDidChange();
 }
 
 - (void)reloadPresets:(id)sender {
-    _browseButton.enabled = NO;
-    _resetButton.enabled = NO;
-    _reloadButton.enabled = NO;
-    _reloadButton.title = @"Reloading\u2026";
+    [self setPresetsButtonsEnabled:NO];
     [self updateSourceErrorLabel:nil];
     NSFileManager *fm = [NSFileManager defaultManager];
     [fm removeItemAtPath:PMPresetIndexCachePath() error:nil];
@@ -153,11 +144,15 @@
 }
 
 - (void)presetsDidReload:(NSNotification *)note {
-    _browseButton.enabled = YES;
-    _resetButton.enabled = YES;
-    _reloadButton.enabled = YES;
-    _reloadButton.title = @"Reload Presets";
+    [self setPresetsButtonsEnabled:YES];
     [self updateSourceErrorLabel:note.userInfo[@"error"]];
+}
+
+- (void)setPresetsButtonsEnabled:(BOOL)enabled {
+    _browseButton.enabled = enabled;
+    _resetButton.enabled = enabled;
+    _reloadButton.enabled = enabled;
+    _reloadButton.title = enabled ? @"Reload Presets" : @"Reloading\u2026";
 }
 
 - (void)updateSourceErrorLabel:(NSString *)error {
