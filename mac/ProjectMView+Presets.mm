@@ -269,7 +269,13 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
     NSString *presetsPath = [path stringByAppendingPathComponent:@"Presets"];
     BOOL presetsIsDir = NO;
     if ([fm fileExistsAtPath:presetsPath isDirectory:&presetsIsDir] && presetsIsDir) {
-        return YES;
+        NSDirectoryEnumerator *enumerator = [fm enumeratorAtPath:presetsPath];
+        for (NSString *entry in enumerator) {
+            if ([[[entry pathExtension] lowercaseString] isEqualToString:@"milk"]) {
+                return YES;
+            }
+        }
+        return NO;
     }
 
     NSError *error = nil;
@@ -785,7 +791,9 @@ static BOOL PMPresetPathsMatch(NSString *lhs, NSString *rhs) {
                 return;
             }
 
-            PMLogError("projectM: no data source found. Checked default ZIP and default folder.");
+            if (errorString.length == 0) {
+                PMLogError("projectM: no data source found. Checked default ZIP and default folder.");
+            }
             [self loadDefaultPresetFallback];
         }
         @catch (NSException *exception) {
